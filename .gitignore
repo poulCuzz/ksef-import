@@ -1,0 +1,14 @@
+/vendor/
+/.env
+*.aes
+*.zip
+*.zip.aes
+*.log
+*.pem
+*.json
+*.lock
+test.php
+config.php
+pobrane_faktury/
+temp/
+logs/
