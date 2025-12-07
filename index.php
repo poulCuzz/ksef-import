@@ -204,6 +204,92 @@
             color: #721c24;
         }
         
+                /* Warning state (błąd użytkownika) */
+        .status-panel.warning {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+
+        .status-panel.warning .status-title {
+            color: #856404;
+        }
+
+        .status-panel.warning .status-message {
+            color: #856404;
+        }
+
+        /* Info state */
+        .status-panel.info {
+            background: #d1ecf1;
+            border-color: #bee5eb;
+        }
+
+        .status-panel.info .status-title {
+            color: #0c5460;
+        }
+
+        .status-panel.info .status-message {
+            color: #0c5460;
+        }
+
+        /* Suggestions list */
+        .suggestions-list {
+            margin-top: 12px;
+            padding: 12px 15px;
+            background: rgba(255,255,255,0.7);
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .suggestions-list ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .suggestions-list li {
+            margin-bottom: 5px;
+            color: #555;
+        }
+
+        .suggestions-list li:last-child {
+            margin-bottom: 0;
+        }
+
+        .error-code {
+            margin-top: 10px;
+            font-size: 11px;
+            color: #888;
+            font-family: monospace;
+        }
+
+        /* Warning icon */
+        .warning-icon {
+            width: 24px;
+            height: 24px;
+            background: #ffc107;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #856404;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        /* Info icon */
+        .info-icon {
+            width: 24px;
+            height: 24px;
+            background: #17a2b8;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
         /* Download buttons */
         .download-list {
             margin-top: 15px;
@@ -346,6 +432,8 @@
                 <div class="spinner" id="spinner"></div>
                 <div class="checkmark" id="checkmark" style="display:none;">✓</div>
                 <div class="error-icon" id="errorIcon" style="display:none;">✕</div>
+                <div class="warning-icon" id="warningIcon" style="display:none;">!</div>
+                <div class="info-icon" id="infoIcon" style="display:none;">i</div>
                 <span class="status-title" id="statusTitle">Przetwarzanie...</span>
             </div>
             <div class="status-message" id="statusMessage">Łączenie z KSeF...</div>
@@ -354,7 +442,9 @@
                 <div class="progress-fill" id="progressFill" style="width: 0%"></div>
             </div>
             <div class="attempt-counter" id="attemptCounter"></div>
-            
+            <!-- Suggestions (pokazuje się przy błędach) -->
+            <div class="suggestions-list" id="suggestionsList" style="display:none;"></div>
+            <div class="error-code" id="errorCode"></div>
             <!-- Download list (pokazuje się gdy gotowe) -->
             <div class="download-list" id="downloadList" style="display:none;"></div>
         </div>
@@ -381,6 +471,10 @@ const progressBar = document.getElementById('progressBar');
 const progressFill = document.getElementById('progressFill');
 const attemptCounter = document.getElementById('attemptCounter');
 const downloadList = document.getElementById('downloadList');
+const warningIcon = document.getElementById('warningIcon');
+const infoIcon = document.getElementById('infoIcon');
+const suggestionsList = document.getElementById('suggestionsList');
+const errorCodeEl = document.getElementById('errorCode');
 
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -401,7 +495,11 @@ form.addEventListener('submit', async (e) => {
     progressFill.style.width = '10%';
     downloadList.style.display = 'none';
     downloadList.innerHTML = '';
-    
+    suggestionsList.style.display = 'none';
+    suggestionsList.innerHTML = '';
+    errorCodeEl.textContent = '';
+    warningIcon.style.display = 'none';
+    infoIcon.style.display = 'none';
     updateStatus('Łączenie z KSeF...', 'Autoryzacja i inicjacja eksportu');
     
     try {
@@ -417,7 +515,11 @@ form.addEventListener('submit', async (e) => {
         const data = await response.json();
         
         if (!data.success) {
-            throw new Error(data.error || 'Nieznany błąd');
+            if (data.errorType) {
+                showError(data);
+                return;
+            }
+            throw new Error(data.error || data.message || 'Nieznany błąd');
         }
         
         sessionId = data.sessionId;
@@ -430,7 +532,12 @@ form.addEventListener('submit', async (e) => {
         checkExportStatus(); // Pierwsze sprawdzenie od razu
         
     } catch (error) {
-        showError(error.message);
+        // Sprawdź czy to odpowiedź z API z klasyfikacją
+        if (error.errorType) {
+            showError(error);
+        } else {
+            showError(error.message);
+        }
     }
 });
 
@@ -487,7 +594,7 @@ function showSuccess(filesCount) {
     progressBar.style.display = 'none';
     attemptCounter.textContent = '';
     
-    statusTitle.textContent = '✅ Eksport zakończony!';
+    statusTitle.textContent = 'Eksport zakończony!';
     statusMessage.textContent = `Znaleziono ${filesCount} plik(ów) do pobrania.`;
     
     // Generuj przyciski pobierania
@@ -513,24 +620,79 @@ function showSuccess(filesCount) {
     submitBtn.textContent = 'Eksportuj ponownie';
 }
 
-function showError(message) {
+function showError(data) {
     if (checkInterval) clearInterval(checkInterval);
     
-    statusPanel.className = 'status-panel show error';
+    // Ukryj wszystkie ikony
     spinner.style.display = 'none';
-    errorIcon.style.display = 'flex';
+    checkmark.style.display = 'none';
+    errorIcon.style.display = 'none';
+    warningIcon.style.display = 'none';
+    infoIcon.style.display = 'none';
     progressBar.style.display = 'none';
     attemptCounter.textContent = '';
     
-    statusTitle.textContent = '❌ Wystąpił błąd';
-    statusMessage.textContent = message;
+    // Obsługa prostego stringa (stary format)
+    if (typeof data === 'string') {
+        data = {
+            errorType: 'unknown_error',
+            errorCode: 'UNKNOWN',
+            title: 'Wystąpił błąd',
+            message: data,
+            suggestions: ['Spróbuj ponownie']
+        };
+    }
+    
+    // Wybierz styl i ikonę w zależności od typu błędu
+    switch (data.errorType) {
+        case 'user_error':
+            statusPanel.className = 'status-panel show warning';
+            warningIcon.style.display = 'flex';
+            statusTitle.textContent = (data.title || 'Błąd danych');
+            break;
+        case 'info':
+            statusPanel.className = 'status-panel show info';
+            infoIcon.style.display = 'flex';
+            statusTitle.textContent = (data.title || 'Informacja');
+            break;
+        case 'server_error':
+            statusPanel.className = 'status-panel show error';
+            errorIcon.style.display = 'flex';
+            statusTitle.textContent = (data.title || 'Błąd serwera');
+            break;
+        case 'app_error':
+            statusPanel.className = 'status-panel show error';
+            errorIcon.style.display = 'flex';
+            statusTitle.textContent = (data.title || 'Błąd aplikacji');
+            break;
+        default:
+            statusPanel.className = 'status-panel show error';
+            errorIcon.style.display = 'flex';
+            statusTitle.textContent = (data.title || 'Wystąpił błąd');
+    }
+    
+    statusMessage.textContent = data.message || 'Nieznany błąd';
     statusDetails.textContent = '';
+    
+    // Pokaż sugestie
+    if (data.suggestions && data.suggestions.length > 0) {
+        suggestionsList.style.display = 'block';
+        suggestionsList.innerHTML = '<strong>Co sprawdzić:</strong><ul>' + 
+            data.suggestions.map(s => `<li>${s}</li>`).join('') + 
+            '</ul>';
+    } else {
+        suggestionsList.style.display = 'none';
+    }
+    
+    // Pokaż kod błędu
+    if (data.errorCode) {
+        errorCodeEl.textContent = `Kod błędu: ${data.errorCode}`;
+    }
     
     // Odblokuj formularz
     submitBtn.disabled = false;
     submitBtn.textContent = 'Spróbuj ponownie';
 }
-
 // Ustaw domyślne daty (ostatni miesiąc)
 const today = new Date();
 const monthAgo = new Date();
@@ -538,6 +700,15 @@ monthAgo.setMonth(monthAgo.getMonth() - 1);
 
 document.getElementById('date_to').value = today.toISOString().split('T')[0];
 document.getElementById('date_from').value = monthAgo.toISOString().split('T')[0];
+// Automatyczne wykrywanie NIP z tokena
+document.getElementById('ksef_token').addEventListener('input', function(e) {
+    const token = e.target.value;
+    const nipMatch = token.match(/nip-(\d{10})/);
+    
+    if (nipMatch) {
+        document.getElementById('nip').value = nipMatch[1];
+    }
+});
 </script>
 
 </body>
