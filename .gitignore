@@ -4,6 +4,7 @@
 # Logi i pliki tymczasowe
 /logs/*.json
 /temp/*.json
+/export/*.json
 
 # Klucze prywatne (certyfikaty publiczne OK)
 *.key

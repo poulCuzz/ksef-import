@@ -1,19 +1,17 @@
 <?php
 
-function refreshAccessToken(string $refreshToken)
+function refreshAccessTokenWithUrl(string $baseUrl, string $refreshToken): string
 {
-    $url = "https://ksef-demo.mf.gov.pl/api/v2/auth/token/refresh";
+    $url = $baseUrl . "/api/v2/auth/token/refresh";
 
     $headers = [
         "Content-Type: application/json",
         "Authorization: Bearer " . $refreshToken
     ];
 
-    // zgodnie z dokumentacją — body = pusty JSON
     $payload = json_encode(new stdClass());
 
     $ch = curl_init();
-
     curl_setopt_array($ch, [
         CURLOPT_URL            => $url,
         CURLOPT_POST           => true,
@@ -28,20 +26,10 @@ function refreshAccessToken(string $refreshToken)
 
     $data = json_decode($response, true);
 
-    // 🚨 Obsługa błędów HTTP
-    if ($httpCode !== 200) {
-        echo "Błąd HTTP: $httpCode\n";
-        echo "Odpowiedź serwera:\n$response\n";
-        return false;
+    if ($httpCode !== 200 || !isset($data['accessToken']['token'])) {
+        throw new Exception("Błąd odświeżania accessToken: HTTP $httpCode");
     }
 
-    // 🚨 Walidacja odpowiedzi
-    if (!isset($data['accessToken']['token'])) {
-        echo "Brak nowego access tokena w odpowiedzi!\n";
-        echo "Odpowiedź serwera:\n$response\n";
-        return false;
-    }
-
-    // 🎉 Zwracamy nowy access token
     return $data['accessToken']['token'];
 }
+
