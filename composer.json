@@ -1,0 +1,17 @@
+{
+    "name": "pawel-n/ksef-invoices-main",
+    "autoload": {
+        "psr-4": {
+            "PawelN\\KsefInvoicesMain\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Pawel",
+            "email": "pawel1818@outlook.com"
+        }
+    ],
+    "require": {
+        "phpseclib/phpseclib": "^3.0"
+    }
+}

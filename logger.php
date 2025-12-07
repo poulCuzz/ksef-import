@@ -9,9 +9,61 @@
  * - response (odpowiedź API)
  * - status (success/error)
  * - http_code
+ * 
+ * UWAGA: Wrażliwe dane (tokeny, klucze) są maskowane dla bezpieczeństwa
  */
 
 define('LOG_FILE', __DIR__ . '/logs/ksef_api_log.json');
+
+/**
+ * Maskuje wrażliwe dane - pokazuje tylko pierwsze i ostatnie znaki
+ */
+function maskSensitiveData(string $value, int $visibleStart = 10, int $visibleEnd = 4): string
+{
+    $length = strlen($value);
+    
+    if ($length <= $visibleStart + $visibleEnd + 3) {
+        // Za krótkie do maskowania - pokaż tylko początek
+        return substr($value, 0, $visibleStart) . '***';
+    }
+    
+    return substr($value, 0, $visibleStart) . '***' . substr($value, -$visibleEnd);
+}
+
+/**
+ * Rekurencyjnie maskuje wrażliwe pola w tablicy
+ */
+function maskArray(mixed $data): mixed
+{
+    if (!is_array($data)) {
+        return $data;
+    }
+    
+    $sensitiveKeys = [
+        'token', 
+        'accessToken', 
+        'refreshToken', 
+        'authenticationToken',
+        'encryptedToken',
+        'encryptedSymmetricKey',
+        'rawSymmetricKey',
+        'rawIV',
+        'initializationVector'
+    ];
+    
+    foreach ($data as $key => $value) {
+        // Sprawdź czy klucz jest wrażliwy
+        if (in_array($key, $sensitiveKeys) && is_string($value)) {
+            $data[$key] = maskSensitiveData($value);
+        }
+        // Sprawdź zagnieżdżone tablice
+        elseif (is_array($value)) {
+            $data[$key] = maskArray($value);
+        }
+    }
+    
+    return $data;
+}
 
 /**
  * Inicjalizuje plik logów (tworzy katalog i plik jeśli nie istnieją)
@@ -38,13 +90,17 @@ function addLogEntry(string $step, mixed $request, mixed $response, string $stat
     
     $logs = json_decode(file_get_contents(LOG_FILE), true) ?? [];
     
+    // Maskuj wrażliwe dane
+    $maskedRequest = maskArray($request);
+    $maskedResponse = maskArray($response);
+    
     $entry = [
         'timestamp' => date('Y-m-d H:i:s'),
         'step' => $step,
         'status' => $status,
         'http_code' => $httpCode,
-        'request' => $request,
-        'response' => $response
+        'request' => $maskedRequest,
+        'response' => $maskedResponse
     ];
     
     $logs[] = $entry;
@@ -59,7 +115,7 @@ function logSessionStart(string $env, string $nip): void
 {
     addLogEntry('SESSION_START', [
         'environment' => $env,
-        'nip' => $nip,
+        'nip' => maskSensitiveData($nip, 3, 2),
         'session_id' => uniqid('sess_')
     ], null, 'info', 0);
 }
@@ -73,7 +129,7 @@ function logChallenge(string $url, array $requestPayload, mixed $response, int $
     
     addLogEntry('GET_CHALLENGE', [
         'url' => $url,
-        'payload' => $requestPayload
+        'payload' => maskArray($requestPayload)
     ], $response, $status, $httpCode);
 }
 
@@ -83,7 +139,7 @@ function logChallenge(string $url, array $requestPayload, mixed $response, int $
 function logTokenEncryption(string $token, int $timestamp, bool $success): void
 {
     addLogEntry('ENCRYPT_TOKEN', [
-        'token' => $token,
+        'token' => maskSensitiveData($token, 15, 6),
         'timestamp' => $timestamp
     ], [
         'encrypted' => $success
@@ -99,7 +155,7 @@ function logAuthenticationToken(string $url, array $requestPayload, mixed $respo
     
     addLogEntry('GET_AUTH_TOKEN', [
         'url' => $url,
-        'payload' => $requestPayload
+        'payload' => maskArray($requestPayload)
     ], $response, $status, $httpCode);
 }
 

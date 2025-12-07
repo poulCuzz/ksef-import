@@ -1,14 +1,29 @@
+# Zależności
 /vendor/
-/.env
-*.aes
-*.zip
-*.zip.aes
-*.log
+
+# Logi i pliki tymczasowe
+/logs/*.json
+/temp/*.json
+
+# Klucze prywatne (certyfikaty publiczne OK)
+*.key
+*.p12
 *.pem
-*.json
-*.lock
-test.php
+*.log
+
+# Pliki systemowe
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Pliki konfiguracyjne z danymi wrażliwymi
 config.php
-pobrane_faktury/
-temp/
-logs/
+.env
+
+# Cache Composer
+composer.lock

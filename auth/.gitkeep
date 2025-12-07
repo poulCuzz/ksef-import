@@ -1,0 +1,3 @@
+# Ten katalog zawiera certyfikat autoryzacji KSeF
+# Pobierz z: https://ksef-demo.mf.gov.pl/api/security/public-key-certificates
+# Zapisz jako: public_key.pem

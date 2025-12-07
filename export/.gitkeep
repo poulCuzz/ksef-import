@@ -1,0 +1,3 @@
+# Ten katalog zawiera certyfikat do szyfrowania eksportu
+# Pobierz z: https://ksef-demo.mf.gov.pl/api/security/public-key-certificates
+# Zapisz jako: public_key_symetric_encription.pem
