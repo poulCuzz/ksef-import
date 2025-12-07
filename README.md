@@ -40,12 +40,12 @@
 
 ## ✨ Funkcje
 
-- 🚀 **Prosty interfejs** - eksport faktur w 3 krokach
-- 🔄 **Automatyczne odpytywanie** - nie musisz odświeżać strony
-- 🔐 **Bezpieczna autoryzacja** - szyfrowanie RSA-OAEP + AES-256
-- 📦 **Pobieranie ZIP** - faktury pobierane bezpośrednio do przeglądarki
-- ⚠️ **Inteligentne błędy** - jasne komunikaty co poszło nie tak
-- 📋 **Logowanie** - pełna historia operacji API
+- **Prosty interfejs** - eksport faktur w 3 krokach
+- **Automatyczne odpytywanie** - nie musisz odświeżać strony
+- **Bezpieczna autoryzacja** - szyfrowanie RSA-OAEP + AES-256
+- **Pobieranie ZIP** - faktury pobierane bezpośrednio do przeglądarki
+- **Inteligentne błędy** - jasne komunikaty co poszło nie tak
+- **Logowanie** - pełna historia operacji API
 
 ---
 
