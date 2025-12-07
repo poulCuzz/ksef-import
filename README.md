@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="docs/images/logo.png" alt="KSeF Export Logo" width="120">
-</p>
-
 <h1 align="center">KSeF Export</h1>
 
 <p align="center">
