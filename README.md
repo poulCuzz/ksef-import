@@ -128,33 +128,50 @@ Skonfiguruj virtual host wskazujący na katalog projektu.
 
 ```
 ksef-export/
-├── index.php              # Frontend - formularz
-├── api.php                # Backend - API endpoints
-├── logger.php             # System logowania
-├── composer.json          # Zależności PHP
-├── auth/
-│   ├── get_challenge.php           # Pobieranie challenge z KSeF
-│   ├── encrypt_token.php           # Szyfrowanie tokena RSA-OAEP
-│   ├── get_auth_token.php          # Uzyskiwanie authenticationToken
-│   ├── get_access_token.php        # Wymiana na accessToken
-│   ├── refresh_access_token.php    # Odświeżanie accessToken
-│   └── public_key.pem              # Certyfikat autoryzacji
-├── export/
-│   ├── generate_encryption.php     # Generowanie kluczy AES
-│   ├── send_export_request.php     # Wysyłanie żądania eksportu
-│   ├── get_export_status.php       # Sprawdzanie statusu eksportu
-│   ├── download_aes.php            # Pobieranie pliku .aes
-│   ├── decrypt_aes.php             # Deszyfrowanie AES-256-CBC
-│   └── public_key_symetric_encription.pem  # Certyfikat szyfrowania
-├── error/
-│   ├── classify_error.php          # Klasyfikacja błędów
-│   └── error_response.php          # Formatowanie odpowiedzi błędów
+│
+├── index.php
+├── api.php
+├── composer.json
+├── LICENSE
+├── README.md
+├── .gitignore
+│
+├── src/
+│   │
+│   ├── Auth/
+│   │   ├── .gitkeep
+│   │   ├── AuthenticatorInterface.php
+│   │   ├── KsefAuthenticator.php
+│   │   ├── TokenEncryptor.php
+│   │   └── public_key.pem
+│   │
+│   ├── Export/
+│   │   ├── .gitkeep
+│   │   ├── EncryptionHandler.php
+│   │   ├── ExporterInterface.php
+│   │   ├── FileDecryptor.php
+│   │   ├── KsefExporter.php
+│   │   ├── last_export_encryption.json
+│   │   └── public_key_symetric_encryption.pem
+│   │
+│   ├── Http/
+│   │   └── KsefClient.php
+│   │
+│   ├── Logger/
+│   │   ├── JsonLogger.php
+│   │   └── LoggerInterface.php
+│   │
+│   └── KsefService.php
+│
+├── docs/
+│
 ├── logs/
-│   └── ksef_api_log.json           # Logi operacji (tworzony automatycznie)
-├── temp/
-│   └── session_*.json              # Sesje tymczasowe (tworzone automatycznie)
-└── docs/
-    └── images/                     # Screenshoty aplikacji
+│   ├── .gitkeep
+│   └── ksef_2025-12-08.log
+│
+└── temp/
+    ├── .gitkeep
+    └── .htaccess
 ```
 
 ### API Endpoints
