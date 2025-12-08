@@ -2,7 +2,7 @@
     "name": "pawel-n/ksef-invoices-main",
     "autoload": {
         "psr-4": {
-            "PawelN\\KsefInvoicesMain\\": "src/"
+            "KSeF\\": "src/"
         }
     },
     "authors": [
