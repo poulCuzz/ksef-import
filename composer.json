@@ -1,17 +1,34 @@
 {
-    "name": "pawel-n/ksef-invoices-main",
+    "name": "poulcuzz/ksef-export",
+    "description": "Eksport faktur z KSeF (Krajowy System e-Faktur) - klient PHP",
+    "type": "project",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "poulCuzz",
+            "homepage": "https://github.com/poulCuzz"
+        }
+    ],
+    "require": {
+        "php": ">=8.0",
+        "phpseclib/phpseclib": "^3.0"
+    },
     "autoload": {
         "psr-4": {
             "KSeF\\": "src/"
         }
     },
-    "authors": [
-        {
-            "name": "Pawel",
-            "email": "pawel1818@outlook.com"
-        }
-    ],
-    "require": {
-        "phpseclib/phpseclib": "^3.0"
-    }
+    "scripts": {
+        "start": "php -S localhost:8000"
+    },
+    "keywords": [
+        "ksef",
+        "ksef-api",
+        "e-faktura",
+        "faktury",
+        "invoice",
+        "php",
+        "vat",
+        "poland"
+    ]
 }

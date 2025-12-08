@@ -28,3 +28,8 @@ config.php
 
 # Cache Composer
 composer.lock
+
+/logs/*.json
+/logs/*.txt
+/src/Export/last_export_encryption.json
+/temp/session_*.json
