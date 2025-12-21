@@ -5,11 +5,10 @@
 </p>
 
 <p align="center">
-  <a href="#-funkcje">Funkcje</a> •
-  <a href="#-quick-start">Quick Start</a> •
-  <a href="#%EF%B8%8F-instalacja">Instalacja</a> •
-  <a href="#-dokumentacja">Dokumentacja</a> •
-  <a href="#-licencja">Licencja</a>
+  <a href="#funkcje">Funkcje</a> •
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#instalacja">Instalacja</a> •
+  <a href="#dokumentacja">Dokumentacja</a> •
 </p>
 
 ---
