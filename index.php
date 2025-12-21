@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KSeF 2.0 - Eksport Faktur</title>
+    <title>KSeF 2.0 - Import Faktur</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -383,7 +383,7 @@
 
 <div class="container">
     <div class="box">
-        <h2>🧾 KSeF 2.0 - Eksport Faktur</h2>
+        <h2>KSeF 2.0 - Import Faktur</h2>
 
         <form id="exportForm">
             <div class="form-group">
@@ -423,7 +423,7 @@
                 </div>
             </div>
 
-            <button type="submit" id="submitBtn">Eksportuj faktury</button>
+            <button type="submit" id="submitBtn">Importuj faktury</button>
         </form>
 
         <!-- Status Panel -->
@@ -500,10 +500,10 @@ form.addEventListener('submit', async (e) => {
     errorCodeEl.textContent = '';
     warningIcon.style.display = 'none';
     infoIcon.style.display = 'none';
-    updateStatus('Łączenie z KSeF...', 'Autoryzacja i inicjacja eksportu');
+    updateStatus('Łączenie z KSeF...', 'Autoryzacja i inicjacja importu');
     
     try {
-        // Krok 1: Start eksportu
+        // Krok 1: Start importu
         const formData = new FormData(form);
         formData.append('action', 'start_export');
         
@@ -524,7 +524,7 @@ form.addEventListener('submit', async (e) => {
         
         sessionId = data.sessionId;
         progressFill.style.width = '30%';
-        updateStatus('Eksport rozpoczęty', `Reference: ${data.referenceNumber}`);
+        updateStatus('Import rozpoczęty', `Reference: ${data.referenceNumber}`);
         statusDetails.textContent = `Reference Number: ${data.referenceNumber}`;
         
         // Krok 2: Sprawdzaj status co 3 sekundy
@@ -564,7 +564,7 @@ async function checkExportStatus() {
         }
         
         updateStatus(
-            data.ready ? 'Eksport gotowy!' : 'Oczekiwanie na eksport...',
+            data.ready ? 'Import gotowy!' : 'Oczekiwanie na import...',
             data.message
         );
         statusDetails.textContent = `Status: ${data.statusCode} - ${data.statusDesc}`;
@@ -594,7 +594,7 @@ function showSuccess(filesCount) {
     progressBar.style.display = 'none';
     attemptCounter.textContent = '';
     
-    statusTitle.textContent = 'Eksport zakończony!';
+    statusTitle.textContent = 'Import zakończony!';
     statusMessage.textContent = `Znaleziono ${filesCount} plik(ów) do pobrania.`;
     
     // Generuj przyciski pobierania
@@ -617,7 +617,7 @@ function showSuccess(filesCount) {
     
     // Odblokuj formularz
     submitBtn.disabled = false;
-    submitBtn.textContent = 'Eksportuj ponownie';
+    submitBtn.textContent = 'Importuj ponownie';
 }
 
 function showError(data) {

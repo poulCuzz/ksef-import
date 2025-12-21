@@ -1,11 +1,11 @@
 <?php
 
 /**
- * API.PHP - Backend dla eksportu faktur z KSeF
+ * API.PHP - Backend dla importu faktur z KSeF
  * 
  * Endpointy:
- *   POST ?action=start_export  - Rozpoczyna eksport
- *   GET  ?action=check_status  - Sprawdza status eksportu
+ *   POST ?action=start_export  - Rozpoczyna import faktur
+ *   GET  ?action=check_status  - Sprawdza status importu
  *   GET  ?action=download      - Pobiera plik ZIP
  */
 
@@ -137,7 +137,7 @@ try {
             // Autoryzacja
             $tokens = $ksef->authenticate($nip, $ksefToken);
             
-            // Eksport
+            // Import
             $exportResult = $ksef->startExport(
                 $tokens['accessToken'],
                 $subjectType,
@@ -210,10 +210,10 @@ try {
             jsonResponse([
                 'success' => true,
                 'statusCode' => $statusCode,
-                'statusDesc' => $isReady ? 'Eksport gotowy' : 'Przetwarzanie',
+                'statusDesc' => $isReady ? 'Import gotowy' : 'Przetwarzanie',
                 'ready' => $isReady,
                 'filesCount' => count($downloadLinks),
-                'message' => $isReady ? 'Pliki gotowe do pobrania' : 'Oczekiwanie na zakończenie eksportu...'
+                'message' => $isReady ? 'Pliki gotowe do pobrania' : 'Oczekiwanie na zakończenie importu...'
             ]);
             break;
         

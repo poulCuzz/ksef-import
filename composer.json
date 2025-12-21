@@ -1,6 +1,6 @@
 {
     "name": "poulcuzz/ksef-export",
-    "description": "Eksport faktur z KSeF (Krajowy System e-Faktur) - klient PHP",
+    "description": "Import faktur z KSeF (Krajowy System e-Faktur) - klient PHP",
     "type": "project",
     "license": "MIT",
     "authors": [

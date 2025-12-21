@@ -1,7 +1,7 @@
 <h1 align="center">KSeF Export</h1>
 
 <p align="center">
-  <strong>Eksportuj faktury z Krajowego Systemu e-Faktur w kilka kliknięć</strong>
+  <strong>Importuj faktury z Krajowego Systemu e-Faktur w kilka kliknięć</strong>
 </p>
 
 <p align="center">
@@ -22,9 +22,9 @@
 
 ---
 
-## ✨ Funkcje
+## Funkcje
 
-- **Prosty interfejs** - eksport faktur w 3 krokach
+- **Prosty interfejs** - import faktur w 3 krokach
 - **Automatyczne odpytywanie** - nie musisz odświeżać strony
 - **Bezpieczna autoryzacja** - szyfrowanie RSA-OAEP + AES-256
 - **Pobieranie ZIP** - faktury pobierane bezpośrednio do przeglądarki
@@ -33,7 +33,7 @@
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
 # 1. Sklonuj repozytorium
@@ -91,7 +91,7 @@ https://ksef-test.mf.gov.pl/api/security/public-key-certificates
 
 Zapisz certyfikaty:
 - `auth/public_key.pem` - certyfikat do autoryzacji
-- `export/public_key_symetric_encription.pem` - certyfikat do szyfrowania eksportu
+- `export/public_key_symetric_encription.pem` - certyfikat do szyfrowania importu
 
 ### Krok 4: Utwórz wymagane katalogi
 
@@ -113,7 +113,7 @@ Skonfiguruj virtual host wskazujący na katalog projektu.
 
 ---
 
-## 📖 Dokumentacja
+## Dokumentacja
 
 ### Jak uzyskać Token KSeF?
 
@@ -122,7 +122,7 @@ Skonfiguruj virtual host wskazujący na katalog projektu.
 3. Przejdź do **Tokeny** → **Generuj nowy token**
 4. Skopiuj wygenerowany token
 
-> ⚠️ **Ważne:** Token z DEMO działa tylko na środowisku DEMO. Token z TEST tylko na TEST.
+> **Ważne:** Token z DEMO działa tylko na środowisku DEMO. Token z TEST tylko na TEST.
 
 ### Struktura projektu
 
@@ -178,11 +178,11 @@ ksef-export/
 
 | Endpoint | Metoda | Opis |
 |----------|--------|------|
-| `api.php?action=start_export` | POST | Rozpoczyna eksport faktur |
-| `api.php?action=check_status&session=XXX` | GET | Sprawdza status eksportu |
+| `api.php?action=start_export` | POST | Rozpoczyna import faktur |
+| `api.php?action=check_status&session=XXX` | GET | Sprawdza status importu |
 | `api.php?action=download&session=XXX&part=0` | GET | Pobiera plik ZIP |
 
-### Parametry eksportu
+### Parametry importu
 
 | Parametr | Opis | Przykład |
 |----------|------|----------|
@@ -195,16 +195,7 @@ ksef-export/
 
 ---
 
-## 🔒 Bezpieczeństwo
-
-- Tokeny i klucze **nie są logowane w całości** (tylko pierwsze znaki)
-- Sesje wygasają po **1 godzinie**
-- Pliki ZIP są szyfrowane **AES-256-CBC** przez KSeF
-- Komunikacja przez **HTTPS**
-
----
-
-## 🐛 Rozwiązywanie problemów
+## Rozwiązywanie problemów
 
 ### "Błąd autoryzacji"
 
@@ -212,7 +203,7 @@ ksef-export/
 - Sprawdź czy NIP zgadza się z tokenem
 - Sprawdź czy środowisko (DEMO/TEST) pasuje do tokena
 
-### "Eksport nie jest jeszcze gotowy"
+### "Import nie jest jeszcze gotowy"
 
 - To normalne na środowisku TEST - serwer przetwarza żądania w kolejce
 - Aplikacja automatycznie odpytuje co 3 sekundy (max 3 minuty)
@@ -224,12 +215,8 @@ ksef-export/
 
 ---
 
-## 👨‍💻 Autor
+## Autor
 
 **poulCuzz** - [GitHub](https://github.com/poulCuzz)
 
 ---
-
-<p align="center">
-  <sub>Stworzone z ❤️ dla polskich przedsiębiorców</sub>
-</p>
