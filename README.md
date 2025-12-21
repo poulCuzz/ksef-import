@@ -91,7 +91,7 @@ https://ksef-test.mf.gov.pl/api/security/public-key-certificates
 
 Zapisz certyfikaty:
 - `auth/public_key.pem` - certyfikat do autoryzacji
-- `export/public_key_symetric_encription.pem` - certyfikat do szyfrowania importu
+- `export/public_key_symetric_encription.pem` - certyfikat do szyfrowania exportu
 
 ### Krok 4: Utwórz wymagane katalogi
 
@@ -127,12 +127,12 @@ Skonfiguruj virtual host wskazujący na katalog projektu.
 ### Struktura projektu
 
 ```
-ksef-import/
+ksef-invoices-main/
 │
+├── api.php
 ├── index.html
 ├── styles.css
 ├── app.js
-├── api.php
 ├── composer.json
 ├── LICENSE
 ├── README.md
@@ -140,15 +140,22 @@ ksef-import/
 │
 ├── src/
 │   │
+│   ├── Api/
+│   │   ├── Helpers.php
+│   │   ├── ErrorHandler.php
+│   │   │
+│   │   └── Actions/
+│   │       ├── StartExportAction.php
+│   │       ├── CheckStatusAction.php
+│   │       └── DownloadAction.php
+│   │
 │   ├── Auth/
-│   │   ├── .gitkeep
 │   │   ├── AuthenticatorInterface.php
 │   │   ├── KsefAuthenticator.php
 │   │   ├── TokenEncryptor.php
 │   │   └── public_key.pem
 │   │
 │   ├── Export/
-│   │   ├── .gitkeep
 │   │   ├── EncryptionHandler.php
 │   │   ├── ExporterInterface.php
 │   │   ├── FileDecryptor.php
@@ -166,27 +173,20 @@ ksef-import/
 │   └── KsefService.php
 │
 ├── docs/
-│
 ├── logs/
-│   ├── .gitkeep
-│   
 ├── temp/
-│   ├── .gitkeep
-│   └── .htaccess
-│
 └── vendor/
-    └── autoload.php
 ```
 
 ### API Endpoints
 
 | Endpoint | Metoda | Opis |
 |----------|--------|------|
-| `api.php?action=start_export` | POST | Rozpoczyna import faktur |
-| `api.php?action=check_status&session=XXX` | GET | Sprawdza status importu |
+| `api.php?action=start_export` | POST | Rozpoczyna export faktur |
+| `api.php?action=check_status&session=XXX` | GET | Sprawdza status exportu |
 | `api.php?action=download&session=XXX&part=0` | GET | Pobiera plik ZIP |
 
-### Parametry importu
+### Parametry importu (z perspektywy KSeF API eksportu)
 
 | Parametr | Opis | Przykład |
 |----------|------|----------|
