@@ -127,9 +127,11 @@ Skonfiguruj virtual host wskazujący na katalog projektu.
 ### Struktura projektu
 
 ```
-ksef-export/
+ksef-import/
 │
-├── index.php
+├── index.html
+├── styles.css
+├── app.js
 ├── api.php
 ├── composer.json
 ├── LICENSE
@@ -167,11 +169,13 @@ ksef-export/
 │
 ├── logs/
 │   ├── .gitkeep
-│   └── ksef_2025-12-08.log
+│   
+├── temp/
+│   ├── .gitkeep
+│   └── .htaccess
 │
-└── temp/
-    ├── .gitkeep
-    └── .htaccess
+└── vendor/
+    └── autoload.php
 ```
 
 ### API Endpoints
