@@ -1,7 +1,7 @@
-<h1 align="center">KSeF Export</h1>
+<h1 align="center">KSeF Import</h1>
 
 <p align="center">
-  <strong>Importuj faktury z Krajowego Systemu e-Faktur w kilka kliknięć</strong>
+  <strong>Importowanie faktur z Krajowego Systemu e-Faktur w kilka kliknięć</strong>
 </p>
 
 <p align="center">
@@ -36,10 +36,10 @@
 
 ```bash
 # 1. Sklonuj repozytorium
-git clone https://github.com/poulCuzz/ksef-export.git
+git clone https://github.com/poulCuzz/ksef-import.git
 
 # 2. Zainstaluj zależności
-cd ksef-export
+cd ksef-import
 composer install
 
 # 3. Pobierz certyfikaty KSeF (instrukcja poniżej)
@@ -64,8 +64,8 @@ php -S localhost:8000
 ### Krok 1: Pobierz projekt
 
 ```bash
-git clone https://github.com/poulCuzz/ksef-export.git
-cd ksef-export
+git clone https://github.com/poulCuzz/ksef-import.git
+cd ksef-import
 ```
 
 ### Krok 2: Zainstaluj zależności
@@ -90,7 +90,7 @@ https://ksef-test.mf.gov.pl/api/security/public-key-certificates
 
 Zapisz certyfikaty:
 - `auth/public_key.pem` - certyfikat do autoryzacji
-- `export/public_key_symetric_encription.pem` - certyfikat do szyfrowania exportu
+- `export/public_key_symetric_encription.pem` - certyfikat do szyfrowania exportu z KSeF API
 
 ### Krok 4: Utwórz wymagane katalogi
 
@@ -181,8 +181,8 @@ ksef-invoices-main/
 
 | Endpoint | Metoda | Opis |
 |----------|--------|------|
-| `api.php?action=start_export` | POST | Rozpoczyna export faktur |
-| `api.php?action=check_status&session=XXX` | GET | Sprawdza status exportu |
+| `api.php?action=start_export` | POST | Rozpoczyna export faktur z KSeF API|
+| `api.php?action=check_status&session=XXX` | GET | Sprawdza status exportu z KSeF API |
 | `api.php?action=download&session=XXX&part=0` | GET | Pobiera plik ZIP |
 
 ### Parametry importu (z perspektywy KSeF API eksportu)
