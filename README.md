@@ -14,7 +14,7 @@
 
 ---
 
-## 📸 Podgląd
+## Podgląd
 
 <p align="center">
   <img src="docs/images/screenshot-success.png" alt="Sukces" width="400">
@@ -53,7 +53,7 @@ php -S localhost:8000
 
 ---
 
-## 🛠️ Instalacja
+## Instalacja
 
 ### Wymagania
 

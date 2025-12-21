@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KSeF 2.0 - Import Faktur</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="container">
+    <div class="box">
+        <h2>KSeF 2.0 - Import Faktur</h2>
+
+        <form id="exportForm">
+            <div class="form-group">
+                <label>Środowisko:</label>
+                <select name="env" id="env">
+                    <option value="demo">DEMO (ksef-demo.mf.gov.pl)</option>
+                    <option value="test">TEST (ksef-test.mf.gov.pl)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Token KSeF:</label>
+                <input type="text" name="ksef_token" id="ksef_token" placeholder="Wklej swój token KSeF" required>
+            </div>
+
+            <div class="form-group">
+                <label>NIP:</label>
+                <input type="text" name="nip" id="nip" placeholder="NIP (10 cyfr)" required pattern="[0-9]{10}" maxlength="10">
+            </div>
+
+            <div class="form-group">
+                <label>Typ podmiotu:</label>
+                <select name="subject_type" id="subject_type">
+                    <option value="Subject1">Subject1 (Sprzedawca)</option>
+                    <option value="Subject2">Subject2 (Nabywca)</option>
+                </select>
+            </div>
+
+            <div class="date-row">
+                <div class="form-group">
+                    <label>Data od:</label>
+                    <input type="date" name="date_from" id="date_from" required>
+                </div>
+                <div class="form-group">
+                    <label>Data do:</label>
+                    <input type="date" name="date_to" id="date_to" required>
+                </div>
+            </div>
+
+            <button type="submit" id="submitBtn">Importuj faktury</button>
+        </form>
+
+        <!-- Status Panel -->
+        <div class="status-panel" id="statusPanel">
+            <div class="status-header">
+                <div class="spinner" id="spinner"></div>
+                <div class="checkmark" id="checkmark" style="display:none;">✓</div>
+                <div class="error-icon" id="errorIcon" style="display:none;">✕</div>
+                <div class="warning-icon" id="warningIcon" style="display:none;">!</div>
+                <div class="info-icon" id="infoIcon" style="display:none;">i</div>
+                <span class="status-title" id="statusTitle">Przetwarzanie...</span>
+            </div>
+            <div class="status-message" id="statusMessage">Łączenie z KSeF...</div>
+            <div class="status-details" id="statusDetails"></div>
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+            <div class="attempt-counter" id="attemptCounter"></div>
+            <!-- Suggestions (pokazuje się przy błędach) -->
+            <div class="suggestions-list" id="suggestionsList" style="display:none;"></div>
+            <div class="error-code" id="errorCode"></div>
+            <!-- Download list (pokazuje się gdy gotowe) -->
+            <div class="download-list" id="downloadList" style="display:none;"></div>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+
+</body>
+</html>

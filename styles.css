@@ -1,0 +1,410 @@
+/* ============================================================================
+   PODSTAWOWE STYLE
+   ============================================================================ */
+
+* { 
+    margin: 0; 
+    padding: 0; 
+    box-sizing: border-box; 
+}
+
+body { 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+    background: #ffffff;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container { 
+    max-width: 600px; 
+    margin: 0 auto; 
+}
+
+.box { 
+    background: #fff; 
+    padding: 30px; 
+    border-radius: 12px; 
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2); 
+}
+
+h2 { 
+    color: #333; 
+    margin-bottom: 25px; 
+    font-size: 24px; 
+    font-weight: 600;
+    text-align: center;
+}
+
+/* ============================================================================
+   FORMULARZ
+   ============================================================================ */
+
+.form-group { 
+    margin-bottom: 20px; 
+}
+
+label { 
+    display: block; 
+    margin-bottom: 6px; 
+    color: #555; 
+    font-weight: 500; 
+    font-size: 14px; 
+}
+
+input[type=text], 
+input[type=date], 
+select { 
+    width: 100%; 
+    padding: 12px 14px; 
+    border: 2px solid #e0e0e0; 
+    border-radius: 8px; 
+    font-size: 14px; 
+    background: #fafafa;
+    transition: all 0.3s;
+}
+
+input[type=text]:focus, 
+input[type=date]:focus, 
+select:focus { 
+    outline: none; 
+    border-color: #667eea;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.date-row { 
+    display: flex; 
+    gap: 15px; 
+}
+
+.date-row > div { 
+    flex: 1; 
+}
+
+/* ============================================================================
+   PRZYCISKI
+   ============================================================================ */
+
+button { 
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white; 
+    border: none; 
+    padding: 14px 28px; 
+    cursor: pointer; 
+    border-radius: 8px; 
+    font-size: 16px; 
+    font-weight: 600; 
+    width: 100%; 
+    margin-top: 10px; 
+    transition: all 0.3s;
+}
+
+button:hover:not(:disabled) { 
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+}
+
+button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ============================================================================
+   PANEL STATUSU
+   ============================================================================ */
+
+.status-panel {
+    display: none;
+    margin-top: 25px;
+    padding: 20px;
+    border-radius: 8px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+}
+
+.status-panel.show {
+    display: block;
+}
+
+.status-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 15px;
+}
+
+.status-title {
+    font-weight: 600;
+    color: #333;
+    font-size: 16px;
+}
+
+.status-message {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.status-details {
+    font-size: 12px;
+    color: #888;
+    font-family: monospace;
+    background: #fff;
+    padding: 8px 12px;
+    border-radius: 4px;
+    border: 1px solid #e0e0e0;
+}
+
+/* ============================================================================
+   SPINNER I IKONY
+   ============================================================================ */
+
+.spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid #e9ecef;
+    border-top-color: #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.checkmark {
+    width: 24px;
+    height: 24px;
+    background: #28a745;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 14px;
+}
+
+.error-icon {
+    width: 24px;
+    height: 24px;
+    background: #dc3545;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.warning-icon {
+    width: 24px;
+    height: 24px;
+    background: #ffc107;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #856404;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.info-icon {
+    width: 24px;
+    height: 24px;
+    background: #17a2b8;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+/* ============================================================================
+   PROGRESS BAR
+   ============================================================================ */
+
+.progress-bar {
+    height: 6px;
+    background: #e9ecef;
+    border-radius: 3px;
+    margin-top: 15px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 3px;
+    transition: width 0.3s;
+    animation: progress-pulse 2s ease-in-out infinite;
+}
+
+@keyframes progress-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.attempt-counter {
+    font-size: 12px;
+    color: #888;
+    margin-top: 10px;
+    text-align: center;
+}
+
+/* ============================================================================
+   STANY PANELU STATUSU
+   ============================================================================ */
+
+/* Success state */
+.status-panel.success {
+    background: #d4edda;
+    border-color: #c3e6cb;
+}
+
+.status-panel.success .status-title {
+    color: #155724;
+}
+
+.status-panel.success .status-message {
+    color: #155724;
+}
+
+/* Error state */
+.status-panel.error {
+    background: #f8d7da;
+    border-color: #f5c6cb;
+}
+
+.status-panel.error .status-title {
+    color: #721c24;
+}
+
+.status-panel.error .status-message {
+    color: #721c24;
+}
+
+/* Warning state (błąd użytkownika) */
+.status-panel.warning {
+    background: #fff3cd;
+    border-color: #ffc107;
+}
+
+.status-panel.warning .status-title {
+    color: #856404;
+}
+
+.status-panel.warning .status-message {
+    color: #856404;
+}
+
+/* Info state */
+.status-panel.info {
+    background: #d1ecf1;
+    border-color: #bee5eb;
+}
+
+.status-panel.info .status-title {
+    color: #0c5460;
+}
+
+.status-panel.info .status-message {
+    color: #0c5460;
+}
+
+/* ============================================================================
+   SUGESTIE I BŁĘDY
+   ============================================================================ */
+
+.suggestions-list {
+    margin-top: 12px;
+    padding: 12px 15px;
+    background: rgba(255,255,255,0.7);
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+.suggestions-list ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.suggestions-list li {
+    margin-bottom: 5px;
+    color: #555;
+}
+
+.suggestions-list li:last-child {
+    margin-bottom: 0;
+}
+
+.error-code {
+    margin-top: 10px;
+    font-size: 11px;
+    color: #888;
+    font-family: monospace;
+}
+
+/* ============================================================================
+   LISTA POBIERANIA
+   ============================================================================ */
+
+.download-list {
+    margin-top: 15px;
+}
+
+.download-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    background: #fff;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    border: 1px solid #c3e6cb;
+}
+
+.download-item span {
+    color: #155724;
+    font-weight: 500;
+}
+
+.download-btn {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 500;
+    text-decoration: none;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.download-btn:hover {
+    background: #218838;
+    transform: translateY(-1px);
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
+@media (max-width: 600px) {
+    .date-row { 
+        flex-direction: column; 
+    }
+    
+    body {
+        padding: 10px;
+    }
+    
+    .box {
+        padding: 20px;
+    }
+}
