@@ -8,7 +8,7 @@
   <a href="#funkcje">Funkcje</a> •
   <a href="#quick-start">Quick Start</a> •
   <a href="#instalacja">Instalacja</a> •
-  <a href="#dokumentacja">Dokumentacja</a> •
+  <a href="#dokumentacja">Dokumentacja</a>
 </p>
 
 ---
