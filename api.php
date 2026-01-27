@@ -7,8 +7,8 @@
  * ale z perspektywy aplikacji to "import" (pobieranie faktur).
  * 
  * Dostępne endpointy:
- *   POST ?action=start_export  - Rozpoczyna export z KSeF API (import do aplikacji)
- *   GET  ?action=check_status  - Sprawdza status exportu
+ *   POST ?action=start_import  - Rozpoczyna import (token lub certyfikat)
+ *   GET  ?action=check_status  - Sprawdza status importu
  *   GET  ?action=download      - Pobiera zaszyfrowany plik ZIP
  * 
  */
@@ -18,6 +18,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 use KSeF\Api\Helpers;
 use KSeF\Api\ErrorHandler;
 use KSeF\Api\Actions\StartExportAction;
+use KSeF\Api\Actions\StartImportWithCertificateAction;
 use KSeF\Api\Actions\CheckStatusAction;
 use KSeF\Api\Actions\DownloadAction;
 
@@ -29,8 +30,17 @@ $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
 try {
     switch ($action) {
-        case 'start_export':
-            (new StartExportAction())->execute();
+        case 'start_import': // ZMIENIONE: start_export → start_import
+            // Sprawdź metodę uwierzytelniania
+            $authMethod = $_POST['auth_method'] ?? 'token';
+            
+            if ($authMethod === 'certificate') {
+                // Uwierzytelnianie certyfikatem
+                (new StartImportWithCertificateAction())->execute();
+            } else {
+                // Uwierzytelnianie tokenem (domyślne)
+                (new StartExportAction())->execute();
+            }
             break;
         
         case 'check_status':
