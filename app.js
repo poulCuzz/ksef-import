@@ -31,11 +31,101 @@ const suggestionsList = document.getElementById('suggestionsList');
 const errorCodeEl = document.getElementById('errorCode');
 
 // ============================================================================
+// PRZEŁĄCZNIK TOKEN/CERTYFIKAT (NOWE)
+// ============================================================================
+
+const methodButtons = document.querySelectorAll('.method-btn');
+const tokenForm = document.getElementById('token-form');
+const certificateForm = document.getElementById('certificate-form');
+const authMethodInput = document.getElementById('auth_method');
+const ksefTokenInput = document.getElementById('ksef_token');
+const certificateInput = document.getElementById('certificate');
+const privateKeyInput = document.getElementById('private_key');
+const keyPasswordInput = document.getElementById('key_password');
+
+// Obsługa kliknięcia w przyciski przełącznika
+methodButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+        const method = btn.dataset.method;
+        
+        // Zmień aktywny przycisk
+        methodButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        // Przełącz formularze
+        if (method === 'token') {
+            tokenForm.classList.add('active');
+            certificateForm.classList.remove('active');
+            authMethodInput.value = 'token';
+            
+            // Ustaw required
+            ksefTokenInput.required = true;
+            certificateInput.required = false;
+            privateKeyInput.required = false;
+            keyPasswordInput.required = false;
+        } else {
+            tokenForm.classList.remove('active');
+            certificateForm.classList.add('active');
+            authMethodInput.value = 'certificate';
+            
+            // Ustaw required
+            ksefTokenInput.required = false;
+            certificateInput.required = true;
+            privateKeyInput.required = true;
+            keyPasswordInput.required = true;
+        }
+    });
+});
+
+// Obsługa uploadu plików - pokazanie nazwy pliku
+certificateInput.addEventListener('change', (e) => {
+    const fileName = e.target.files[0]?.name || '';
+    document.getElementById('cert-file-name').textContent = fileName ? `✓ ${fileName}` : '';
+});
+
+privateKeyInput.addEventListener('change', (e) => {
+    const fileName = e.target.files[0]?.name || '';
+    document.getElementById('key-file-name').textContent = fileName ? `✓ ${fileName}` : '';
+});
+
+// ============================================================================
 // OBSŁUGA FORMULARZA
 // ============================================================================
 
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    
+    // Walidacja dla certyfikatu (NOWE)
+    const authMethod = authMethodInput.value;
+    if (authMethod === 'certificate') {
+        if (!certificateInput.files[0]) {
+            showError({
+                errorType: 'user_error',
+                title: 'Brak pliku certyfikatu',
+                message: 'Proszę wybrać plik certyfikatu (.crt)',
+                suggestions: ['Upewnij się, że wybrałeś plik z rozszerzeniem .crt lub .pem']
+            });
+            return;
+        }
+        if (!privateKeyInput.files[0]) {
+            showError({
+                errorType: 'user_error',
+                title: 'Brak klucza prywatnego',
+                message: 'Proszę wybrać plik klucza prywatnego (.key)',
+                suggestions: ['Upewnij się, że wybrałeś plik z rozszerzeniem .key lub .pem']
+            });
+            return;
+        }
+        if (!keyPasswordInput.value.trim()) {
+            showError({
+                errorType: 'user_error',
+                title: 'Brak hasła',
+                message: 'Proszę wpisać hasło do klucza prywatnego',
+                suggestions: ['Hasło jest wymagane do odszyfrowania klucza prywatnego']
+            });
+            return;
+        }
+    }
     
     // Reset
     attemptCount = 0;
@@ -63,7 +153,7 @@ form.addEventListener('submit', async (e) => {
     try {
         // Krok 1: Start importu
         const formData = new FormData(form);
-        formData.append('action', 'start_export');
+        formData.append('action', 'start_import'); // POPRAWIONE: export → import
         
         const response = await fetch('api.php', {
             method: 'POST',
@@ -86,8 +176,8 @@ form.addEventListener('submit', async (e) => {
         statusDetails.textContent = `Reference Number: ${data.referenceNumber}`;
         
         // Krok 2: Sprawdzaj status co 3 sekundy
-        checkInterval = setInterval(checkExportStatus, checkIntervalMs);
-        checkExportStatus(); // Pierwsze sprawdzenie od razu
+        checkInterval = setInterval(checkImportStatus, checkIntervalMs); // POPRAWIONE: export → import
+        checkImportStatus(); // Pierwsze sprawdzenie od razu
         
     } catch (error) {
         // Sprawdź czy to odpowiedź z API z klasyfikacją
@@ -100,10 +190,10 @@ form.addEventListener('submit', async (e) => {
 });
 
 // ============================================================================
-// SPRAWDZANIE STATUSU EKSPORTU
+// SPRAWDZANIE STATUSU IMPORTU (POPRAWIONE: export → import)
 // ============================================================================
 
-async function checkExportStatus() {
+async function checkImportStatus() {
     attemptCount++;
     
     if (attemptCount > maxAttempts) {

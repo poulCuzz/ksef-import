@@ -1,5 +1,5 @@
 /* ============================================================================
-   PODSTAWOWE STYLE
+   PODSTAWOWE STYLE (ORYGINALNE)
    ============================================================================ */
 
 * { 
@@ -36,7 +36,51 @@ h2 {
 }
 
 /* ============================================================================
-   FORMULARZ
+   PRZEŁĄCZNIK (NOWY - MINIMUM)
+   ============================================================================ */
+
+.auth-method-switcher {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 25px;
+}
+
+.method-btn {
+    flex: 1;
+    padding: 12px 20px;
+    border: 2px solid #e0e0e0;
+    background: #fafafa;
+    color: #666;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-top: 0;
+    width: auto;
+}
+
+.method-btn:hover {
+    border-color: #667eea;
+    background: #fff;
+}
+
+.method-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-color: #667eea;
+}
+
+.auth-form {
+    display: none;
+}
+
+.auth-form.active {
+    display: block;
+}
+
+/* ============================================================================
+   FORMULARZ (ORYGINALNE)
    ============================================================================ */
 
 .form-group { 
@@ -51,7 +95,8 @@ label {
     font-size: 14px; 
 }
 
-input[type=text], 
+input[type=text],
+input[type=password],
 input[type=date], 
 select { 
     width: 100%; 
@@ -63,13 +108,50 @@ select {
     transition: all 0.3s;
 }
 
-input[type=text]:focus, 
+input[type=text]:focus,
+input[type=password]:focus,
 input[type=date]:focus, 
 select:focus { 
     outline: none; 
     border-color: #667eea;
     background: #fff;
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Upload plików (NOWY - MINIMUM) */
+input[type=file] {
+    display: none;
+}
+
+.file-upload-label {
+    display: block;
+    width: 100%;
+    padding: 12px 14px;
+    border: 2px dashed #e0e0e0;
+    border-radius: 8px;
+    background: #fafafa;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-align: center;
+    color: #666;
+    font-size: 14px;
+}
+
+.file-upload-label:hover {
+    border-color: #667eea;
+    background: #fff;
+}
+
+.file-name {
+    display: block;
+    margin-top: 8px;
+    font-size: 13px;
+    color: #28a745;
+    font-weight: 500;
+}
+
+.file-name:empty {
+    display: none;
 }
 
 .date-row { 
@@ -82,7 +164,7 @@ select:focus {
 }
 
 /* ============================================================================
-   PRZYCISKI
+   PRZYCISKI (ORYGINALNE)
    ============================================================================ */
 
 button { 
@@ -111,7 +193,7 @@ button:disabled {
 }
 
 /* ============================================================================
-   PANEL STATUSU
+   PANEL STATUSU (ORYGINALNE)
    ============================================================================ */
 
 .status-panel {
@@ -157,7 +239,7 @@ button:disabled {
 }
 
 /* ============================================================================
-   SPINNER I IKONY
+   SPINNER I IKONY (ORYGINALNE)
    ============================================================================ */
 
 .spinner {
@@ -225,7 +307,7 @@ button:disabled {
 }
 
 /* ============================================================================
-   PROGRESS BAR
+   PROGRESS BAR (ORYGINALNE)
    ============================================================================ */
 
 .progress-bar {
@@ -257,10 +339,9 @@ button:disabled {
 }
 
 /* ============================================================================
-   STANY PANELU STATUSU
+   STANY PANELU STATUSU (ORYGINALNE)
    ============================================================================ */
 
-/* Success state */
 .status-panel.success {
     background: #d4edda;
     border-color: #c3e6cb;
@@ -274,7 +355,6 @@ button:disabled {
     color: #155724;
 }
 
-/* Error state */
 .status-panel.error {
     background: #f8d7da;
     border-color: #f5c6cb;
@@ -288,7 +368,6 @@ button:disabled {
     color: #721c24;
 }
 
-/* Warning state (błąd użytkownika) */
 .status-panel.warning {
     background: #fff3cd;
     border-color: #ffc107;
@@ -302,7 +381,6 @@ button:disabled {
     color: #856404;
 }
 
-/* Info state */
 .status-panel.info {
     background: #d1ecf1;
     border-color: #bee5eb;
@@ -317,7 +395,7 @@ button:disabled {
 }
 
 /* ============================================================================
-   SUGESTIE I BŁĘDY
+   SUGESTIE I BŁĘDY (ORYGINALNE)
    ============================================================================ */
 
 .suggestions-list {
@@ -350,7 +428,7 @@ button:disabled {
 }
 
 /* ============================================================================
-   LISTA POBIERANIA
+   LISTA POBIERANIA (ORYGINALNE)
    ============================================================================ */
 
 .download-list {
@@ -392,12 +470,16 @@ button:disabled {
 }
 
 /* ============================================================================
-   RESPONSIVE
+   RESPONSIVE (ORYGINALNE + dodane przełącznik)
    ============================================================================ */
 
 @media (max-width: 600px) {
     .date-row { 
         flex-direction: column; 
+    }
+    
+    .auth-method-switcher {
+        flex-direction: column;
     }
     
     body {
@@ -406,5 +488,120 @@ button:disabled {
     
     .box {
         padding: 20px;
+    }
+}
+/* ============================================================================
+   PRZEŁĄCZNIK TOKEN/CERTYFIKAT (NOWE)
+   ============================================================================ */
+
+.auth-method-switcher {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 25px;
+}
+
+.method-btn {
+    flex: 1;
+    padding: 12px 20px;
+    border: 2px solid #e0e0e0;
+    background: #fafafa;
+    color: #666;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.method-btn:hover {
+    border-color: #667eea;
+    background: #fff;
+}
+
+.method-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-color: #667eea;
+}
+
+/* ============================================================================
+   FORMULARZE - PRZEŁĄCZANIE (NOWE)
+   ============================================================================ */
+
+.auth-form {
+    display: none;
+}
+
+.auth-form.active {
+    display: block;
+}
+
+/* ============================================================================
+   UPLOAD PLIKÓW (NOWE)
+   ============================================================================ */
+
+input[type="file"] {
+    display: none;
+}
+
+.file-upload-label {
+    display: block;
+    padding: 12px 14px;
+    border: 2px dashed #e0e0e0;
+    border-radius: 8px;
+    background: #fafafa;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 14px;
+    color: #666;
+    text-align: center;
+}
+
+.file-upload-label:hover {
+    border-color: #667eea;
+    background: #fff;
+}
+
+.file-name {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: #667eea;
+    font-weight: 600;
+}
+
+.file-name:empty {
+    display: none;
+}
+
+input[type="password"] {
+    width: 100%; 
+    padding: 12px 14px; 
+    border: 2px solid #e0e0e0; 
+    border-radius: 8px; 
+    font-size: 14px; 
+    background: #fafafa;
+    transition: all 0.3s;
+}
+
+input[type="password"]:focus {
+    outline: none; 
+    border-color: #667eea;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-hint {
+    display: block;
+    margin-top: 5px;
+    font-size: 12px;
+    color: #888;
+    font-style: italic;
+}
+
+/* Responsywność przełącznika */
+@media (max-width: 600px) {
+    .auth-method-switcher {
+        flex-direction: column;
     }
 }

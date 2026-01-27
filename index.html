@@ -12,7 +12,16 @@
     <div class="box">
         <h2>KSeF 2.0 - Import Faktur</h2>
 
-        <form id="exportForm">
+        <!-- PRZEŁĄCZNIK (NOWY) -->
+        <div class="auth-method-switcher">
+            <button type="button" class="method-btn active" data-method="token">🔑 Token KSeF</button>
+            <button type="button" class="method-btn" data-method="certificate">🔐 Certyfikat</button>
+        </div>
+
+        <form id="exportForm" enctype="multipart/form-data">
+            <!-- Pole ukryte - metoda uwierzytelniania (NOWE) -->
+            <input type="hidden" name="auth_method" id="auth_method" value="token">
+
             <div class="form-group">
                 <label>Środowisko:</label>
                 <select name="env" id="env">
@@ -21,9 +30,34 @@
                 </select>
             </div>
 
-            <div class="form-group">
-                <label>Token KSeF:</label>
-                <input type="text" name="ksef_token" id="ksef_token" placeholder="Wklej swój token KSeF" required>
+            <!-- FORMULARZ TOKENA (domyślnie widoczny) -->
+            <div id="token-form" class="auth-form active">
+                <div class="form-group">
+                    <label>Token KSeF:</label>
+                    <input type="text" name="ksef_token" id="ksef_token" placeholder="Wklej swój token KSeF">
+                </div>
+            </div>
+
+            <!-- FORMULARZ CERTYFIKATU (NOWY - ukryty domyślnie) -->
+            <div id="certificate-form" class="auth-form">
+                <div class="form-group">
+                    <label>Certyfikat (.crt):</label>
+                    <input type="file" name="certificate" id="certificate" accept=".crt,.pem">
+                    <label for="certificate" class="file-upload-label">📄 Wybierz plik certyfikatu</label>
+                    <span class="file-name" id="cert-file-name"></span>
+                </div>
+
+                <div class="form-group">
+                    <label>Klucz prywatny (.key):</label>
+                    <input type="file" name="private_key" id="private_key" accept=".key,.pem">
+                    <label for="private_key" class="file-upload-label">🔑 Wybierz plik klucza</label>
+                    <span class="file-name" id="key-file-name"></span>
+                </div>
+
+                <div class="form-group">
+                    <label>Hasło do klucza prywatnego:</label>
+                    <input type="password" name="key_password" id="key_password" placeholder="Wpisz hasło">
+                </div>
             </div>
 
             <div class="form-group">
