@@ -2,192 +2,162 @@
 
 namespace KSeF\Api\Actions;
 
-use KSeF\Api\Helpers;
 use KSeF\Auth\CertificateAuthenticator;
 use KSeF\Export\KsefExporter;
-use KSeF\Export\FileDecryptor;
-use KSeF\Logger\FileLogger;
-use KSeF\Http\CurlHttpClient;
 use Exception;
 
-/**
- * Akcja: Start importu z uwierzytelnianiem certyfikatem
- */
 class StartImportWithCertificateAction
 {
     public function execute(): void
     {
-        // Walidacja metody
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            Helpers::errorResponse('Metoda musi być POST', 'user_error', 405);
-        }
-
-        // Walidacja pól formularza
-        $nip = $_POST['nip'] ?? '';
-        $env = $_POST['env'] ?? 'demo';
-        $subjectType = $_POST['subject_type'] ?? 'Subject1';
-        $dateFrom = $_POST['date_from'] ?? '';
-        $dateTo = $_POST['date_to'] ?? '';
-        $keyPassword = $_POST['key_password'] ?? '';
-
-        // Walidacja wymaganych pól tekstowych
-        if (empty($nip)) {
-            Helpers::errorResponse('Brak NIP', 'user_error', 400, [
-                'Pole NIP jest wymagane'
-            ]);
-        }
-
-        if (empty($keyPassword)) {
-            Helpers::errorResponse('Brak hasła do klucza prywatnego', 'user_error', 400, [
-                'Hasło jest wymagane do odszyfrowania klucza prywatnego'
-            ]);
-        }
-
-        // Walidacja uploadowanych plików
-        if (!isset($_FILES['certificate']) || $_FILES['certificate']['error'] !== UPLOAD_ERR_OK) {
-            Helpers::errorResponse('Brak pliku certyfikatu', 'user_error', 400, [
-                'Upewnij się, że wybrałeś plik certyfikatu (.crt lub .pem)',
-                'Maksymalny rozmiar pliku: ' . ini_get('upload_max_filesize')
-            ]);
-        }
-
-        if (!isset($_FILES['private_key']) || $_FILES['private_key']['error'] !== UPLOAD_ERR_OK) {
-            Helpers::errorResponse('Brak pliku klucza prywatnego', 'user_error', 400, [
-                'Upewnij się, że wybrałeś plik klucza (.key lub .pem)',
-                'Maksymalny rozmiar pliku: ' . ini_get('upload_max_filesize')
-            ]);
-        }
-
-        // Zapisz pliki tymczasowe
-        $sessionId = Helpers::generateSessionId();
-        $sessionDir = __DIR__ . '/../../sessions/' . $sessionId;
-        
-        if (!is_dir($sessionDir)) {
-            mkdir($sessionDir, 0755, true);
-        }
-
-        $certPath = $sessionDir . '/certificate.crt';
-        $keyPath = $sessionDir . '/private_key.key';
-
         try {
-            // Przenieś uploadowane pliki
-            if (!move_uploaded_file($_FILES['certificate']['tmp_name'], $certPath)) {
-                throw new Exception('Nie udało się zapisać pliku certyfikatu');
+            // 1. Walidacja POST
+            $this->validateRequest();
+
+            // 2. Pobierz dane z formularza
+            $nip = $_POST['nip'];
+            $env = $_POST['env'] ?? 'demo';
+            $password = $_POST['key_password'];
+            $dateFrom = $_POST['date_from'];
+            $dateTo = $_POST['date_to'];
+            $subjectType = $_POST['subject_type'] ?? 'Subject1';
+
+            // 3. Walidacja uploadowanych plików
+            if (!isset($_FILES['certificate']) || $_FILES['certificate']['error'] !== UPLOAD_ERR_OK) {
+                throw new Exception('Błąd uploadu certyfikatu');
             }
 
-            if (!move_uploaded_file($_FILES['private_key']['tmp_name'], $keyPath)) {
-                throw new Exception('Nie udało się zapisać pliku klucza prywatnego');
+            if (!isset($_FILES['private_key']) || $_FILES['private_key']['error'] !== UPLOAD_ERR_OK) {
+                throw new Exception('Błąd uploadu klucza prywatnego');
             }
 
-            // KROK 1: Uwierzytelnienie certyfikatem
+            // 4. Utwórz katalog sesji
+            $sessionId = uniqid('cert_', true);
+            // Katalog na pliki certyfikatu
+            $certDir = dirname(__DIR__, 3) . '/temp/cert_' . $sessionId;
+            if (!is_dir($certDir)) {
+                mkdir($certDir, 0755, true);
+            }
+
+            // 5. Zapisz pliki tymczasowo
+            $certPath = $certDir . '/certificate.crt';
+            $keyPath = $certDir . '/private_key.key';
+
+            move_uploaded_file($_FILES['certificate']['tmp_name'], $certPath);
+            move_uploaded_file($_FILES['private_key']['tmp_name'], $keyPath);
+
+            // 6. Uwierzytelnij certyfikatem
             $authenticator = new CertificateAuthenticator($env);
-            
             $authData = $authenticator->authenticate(
                 $certPath,
                 $keyPath,
-                $keyPassword,
+                $password,
                 $nip
             );
 
             $accessToken = $authData['accessToken'];
-            $refreshToken = $authData['refreshToken'] ?? null;
 
-            // KROK 2: Konwertuj daty do formatu ISO 8601 z timezone
-            $dateFromISO = date('Y-m-d\T00:00:00.000+00:00', strtotime($dateFrom));
-            $dateToISO = date('Y-m-d\T23:59:59.999+00:00', strtotime($dateTo));
+            // 7. Konwertuj daty do ISO 8601
+            $dateFromISO = $this->convertDateToISO($dateFrom);
+            $dateToISO = $this->convertDateToISO($dateTo);
 
-            // KROK 3: Rozpocznij eksport (import z perspektywy aplikacji)
-            $httpClient = new CurlHttpClient();
-            $logger = new FileLogger(__DIR__ . '/../../logs/ksef.log');
+            // 8. Przygotuj ścieżki
+            $baseUrl = $this->getBaseUrl($env);
+            $publicKeyPath = dirname(__DIR__, 2) . '/Export/public_key_symetric_encription.pem';
+
+            // 9. Uruchom eksport
+            $exporter = new KsefExporter($baseUrl, $publicKeyPath);
             
-            $exporter = new KsefExporter($httpClient, $logger, $env);
-            
-            $exportResult = $exporter->sendExportRequest(
-                $accessToken,
-                $subjectType,
-                $dateFromISO,
-                $dateToISO
+            $result = $exporter->sendExportRequest(
+                $accessToken,      // 1. accessToken
+                $subjectType,      // 2. subjectType
+                $dateFromISO,      // 3. dateFrom
+                $dateToISO         // 4. dateTo
             );
 
-            if (!$exportResult || !isset($exportResult['referenceNumber'])) {
-                throw new Exception('Nie otrzymano referenceNumber z KSeF');
-            }
+            $referenceNumber = $result['referenceNumber'];
 
-            // KROK 4: Zapisz dane sesji
+            // 10. Pobierz klucze szyfrowania
+            $encFile = dirname(__DIR__, 2) . '/Export/last_export_encryption.json';
+            $encData = json_decode(file_get_contents($encFile), true);
+
+            // 11. Zapisz dane sesji
             $sessionData = [
                 'sessionId' => $sessionId,
-                'referenceNumber' => $exportResult['referenceNumber'],
+                'referenceNumber' => $referenceNumber,
                 'accessToken' => $accessToken,
-                'refreshToken' => $refreshToken,
-                'nip' => $nip,
-                'env' => $env,
-                'authMethod' => 'certificate',
-                'startedAt' => date('Y-m-d H:i:s'),
-                'encryption' => $exportResult['encryption'] ?? null
+                'baseUrl' => $baseUrl,
+                'rawSymmetricKey' => $encData['rawSymmetricKey'],
+                'rawIV' => $encData['rawIV'],
+                'auth_method' => 'certificate',
+                'created_at' => date('Y-m-d H:i:s')
             ];
 
-            file_put_contents(
-                $sessionDir . '/session.json',
-                json_encode($sessionData, JSON_PRETTY_PRINT)
-            );
+            // Zapisz sesję przez Helpers (kompatybilne z CheckStatus i Download)
+            \KSeF\Api\Helpers::saveSession($sessionId, $sessionData);
 
-            // KROK 5: Zwróć sukces
-            Helpers::successResponse([
+            // 11. Odpowiedź sukcesu
+            echo json_encode([
+                'success' => true,
                 'sessionId' => $sessionId,
-                'referenceNumber' => $exportResult['referenceNumber'],
-                'message' => 'Import rozpoczęty pomyślnie (uwierzytelnienie certyfikatem)'
+                'referenceNumber' => $referenceNumber
             ]);
 
         } catch (Exception $e) {
-            // Usuń sesję w przypadku błędu
-            if (isset($sessionDir) && is_dir($sessionDir)) {
-                array_map('unlink', glob($sessionDir . '/*'));
-                rmdir($sessionDir);
-            }
-
-            // Klasyfikacja błędu
-            $errorMessage = $e->getMessage();
+            // Klasyfikuj błędy
+            $errorType = $this->classifyError($e);
             
-            // Błędy użytkownika (hasło, certyfikat)
-            if (
-                stripos($errorMessage, 'password') !== false ||
-                stripos($errorMessage, 'incorrect') !== false ||
-                stripos($errorMessage, 'decrypt') !== false
-            ) {
-                Helpers::errorResponse(
-                    'Nieprawidłowe hasło do klucza prywatnego',
-                    'user_error',
-                    400,
-                    [
-                        'Sprawdź czy hasło zostało wpisane poprawnie',
-                        'Upewnij się że to hasło pasuje do tego klucza prywatnego'
-                    ]
-                );
-            }
-
-            if (
-                stripos($errorMessage, 'certificate') !== false ||
-                stripos($errorMessage, 'cert') !== false
-            ) {
-                Helpers::errorResponse(
-                    'Błąd w pliku certyfikatu lub klucza',
-                    'user_error',
-                    400,
-                    [
-                        'Upewnij się że wybrałeś poprawny certyfikat (.crt)',
-                        'Upewnij się że wybrałeś poprawny klucz prywatny (.key)',
-                        'Sprawdź czy pliki nie są uszkodzone'
-                    ]
-                );
-            }
-
-            // Błąd ogólny
-            Helpers::errorResponse(
-                $errorMessage,
-                'app_error',
-                500,
-                ['Sprawdź logi aplikacji dla szczegółów']
-            );
+            echo json_encode([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'error_type' => $errorType
+            ]);
         }
+    }
+
+    private function validateRequest(): void
+    {
+        $required = ['nip', 'key_password', 'date_from', 'date_to'];
+        
+        foreach ($required as $field) {
+            if (!isset($_POST[$field]) || empty($_POST[$field])) {
+                throw new Exception("Pole {$field} jest wymagane");
+            }
+        }
+    }
+
+    private function convertDateToISO(string $date): string
+    {
+        $timestamp = strtotime($date);
+        return date('Y-m-d\TH:i:s.000+00:00', $timestamp);
+    }
+
+    private function getBaseUrl(string $environment): string
+    {
+        return match (strtolower($environment)) {
+            'demo' => 'https://ksef-demo.mf.gov.pl',
+            'test' => 'https://ksef-test.mf.gov.pl',
+            'prod', 'production' => 'https://ksef.mf.gov.pl',
+            default => throw new Exception("Nieznane środowisko: {$environment}")
+        };
+    }
+
+    private function classifyError(Exception $e): string
+    {
+        $message = $e->getMessage();
+
+        // Błędy użytkownika
+        if (stripos($message, 'hasło') !== false ||
+            stripos($message, 'password') !== false) {
+            return 'user_error';
+        }
+
+        if (stripos($message, 'certyfikat') !== false ||
+            stripos($message, 'certificate') !== false) {
+            return 'user_error';
+        }
+
+        // Błędy aplikacji
+        return 'app_error';
     }
 }

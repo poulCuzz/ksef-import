@@ -30,16 +30,18 @@ $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
 try {
     switch ($action) {
-        case 'start_import': // ZMIENIONE: start_export → start_import
-            // Sprawdź metodę uwierzytelniania
+        case 'start_import':
             $authMethod = $_POST['auth_method'] ?? 'token';
             
             if ($authMethod === 'certificate') {
-                // Uwierzytelnianie certyfikatem
-                (new StartImportWithCertificateAction())->execute();
+                // ⬇️ NOWA KLASA
+                require_once __DIR__ . '/src/Auth/CertificateAuthenticator.php';
+                require_once __DIR__ . '/src/Api/Actions/StartImportWithCertificateAction.php';
+                
+                (new KSeF\Api\Actions\StartImportWithCertificateAction())->execute();
             } else {
-                // Uwierzytelnianie tokenem (domyślne)
-                (new StartExportAction())->execute();
+                // Token (stara ścieżka)
+                (new KSeF\Api\Actions\StartExportAction())->execute();
             }
             break;
         
