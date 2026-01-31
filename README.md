@@ -80,12 +80,12 @@ Pobierz certyfikaty z oficjalnej strony KSeF:
 
 **Środowisko DEMO:**
 ```
-https://ksef-demo.mf.gov.pl/api/security/public-key-certificates
+https://api-demo.ksef.mf.gov.pl/v2/security/public-key-certificates
 ```
 
 **Środowisko TEST:**
 ```
-https://ksef-test.mf.gov.pl/api/security/public-key-certificates
+https://api-test.ksef.mf.gov.pl/v2/security/public-key-certificates
 ```
 
 Zapisz certyfikaty:

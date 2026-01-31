@@ -23,7 +23,7 @@ class KsefAuthenticator implements AuthenticatorInterface {
     }
     
     public function getChallenge(string $nip): array {
-        $url = "/api/v2/auth/challenge";
+        $url = "/auth/challenge";
         $response = $this->client->post($url, [
             "contextIdentifier" => [
                 "type" => "Nip",
@@ -48,7 +48,7 @@ class KsefAuthenticator implements AuthenticatorInterface {
     }
     
     public function getAuthToken(string $challenge, string $encryptedToken, string $nip): string {
-        $url = "/api/v2/auth/ksef-token";
+        $url = "/auth/ksef-token";
         $response = $this->client->post($url, [
             "challenge" => $challenge,
             "contextIdentifier" => [
@@ -68,7 +68,7 @@ class KsefAuthenticator implements AuthenticatorInterface {
     }
     
     public function getAccessToken(string $authenticationToken): array {
-        $url = "/api/v2/auth/token/redeem";
+        $url = "/auth/token/redeem";
         $response = $this->client->post($url, [], [
             "Authorization: Bearer " . $authenticationToken
         ]);
@@ -83,7 +83,7 @@ class KsefAuthenticator implements AuthenticatorInterface {
     }
     
     public function refreshAccessToken(string $refreshToken): string {
-        $url = "/api/v2/auth/token/refresh";
+        $url = "/auth/token/refresh";
         $response = $this->client->post($url, [], [
             "Authorization: Bearer " . $refreshToken
         ]);

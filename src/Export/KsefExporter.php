@@ -39,7 +39,7 @@ class KsefExporter implements ExporterInterface {
             "filters" => $filters
         ]);
 
-        $url = $this->baseUrl . "/api/v2/invoices/exports";
+        $url = $this->baseUrl . "/invoices/exports";
 
         $headers = [
             "Content-Type: application/json",
@@ -69,7 +69,7 @@ class KsefExporter implements ExporterInterface {
 
     public function getExportStatus(string $accessToken, string $referenceNumber): array
     {
-        $url = $this->baseUrl . '/api/v2/invoices/exports/' . urlencode($referenceNumber);
+        $url = $this->baseUrl . '/invoices/exports/' . urlencode($referenceNumber);
 
         $headers = [
             'Accept: application/json',
