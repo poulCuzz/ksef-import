@@ -1,214 +1,217 @@
 // ============================================================================
+// KONFIGURACJA
+// ============================================================================
+
+const CONFIG = {
+    maxAttempts: 60,
+    checkIntervalMs: 3000,
+    apiEndpoint: 'api.php'
+};
+
+// ============================================================================
 // ZMIENNE GLOBALNE
 // ============================================================================
 
 let sessionId = null;
 let checkInterval = null;
 let attemptCount = 0;
-const maxAttempts = 60; // 60 prób × 3 sekundy = 3 minuty
-const checkIntervalMs = 3000; // 3 sekundy
 
 // ============================================================================
 // ELEMENTY DOM
 // ============================================================================
 
-const form = document.getElementById('exportForm');
-const submitBtn = document.getElementById('submitBtn');
-const statusPanel = document.getElementById('statusPanel');
-const spinner = document.getElementById('spinner');
-const checkmark = document.getElementById('checkmark');
-const errorIcon = document.getElementById('errorIcon');
-const statusTitle = document.getElementById('statusTitle');
-const statusMessage = document.getElementById('statusMessage');
-const statusDetails = document.getElementById('statusDetails');
-const progressBar = document.getElementById('progressBar');
-const progressFill = document.getElementById('progressFill');
-const attemptCounter = document.getElementById('attemptCounter');
-const downloadList = document.getElementById('downloadList');
-const warningIcon = document.getElementById('warningIcon');
-const infoIcon = document.getElementById('infoIcon');
-const suggestionsList = document.getElementById('suggestionsList');
-const errorCodeEl = document.getElementById('errorCode');
+const elements = {
+    form: document.getElementById('exportForm'),
+    submitBtn: document.getElementById('submitBtn'),
+    statusPanel: document.getElementById('statusPanel'),
+    spinner: document.getElementById('spinner'),
+    checkmark: document.getElementById('checkmark'),
+    errorIcon: document.getElementById('errorIcon'),
+    warningIcon: document.getElementById('warningIcon'),
+    infoIcon: document.getElementById('infoIcon'),
+    statusTitle: document.getElementById('statusTitle'),
+    statusMessage: document.getElementById('statusMessage'),
+    statusDetails: document.getElementById('statusDetails'),
+    progressBar: document.getElementById('progressBar'),
+    progressFill: document.getElementById('progressFill'),
+    attemptCounter: document.getElementById('attemptCounter'),
+    downloadList: document.getElementById('downloadList'),
+    suggestionsList: document.getElementById('suggestionsList'),
+    errorCode: document.getElementById('errorCode'),
+    dateFrom: document.getElementById('date_from'),
+    dateTo: document.getElementById('date_to'),
+    // Elementy przełącznika metody uwierzytelniania
+    authMethod: document.getElementById('auth_method'),
+    tokenForm: document.getElementById('token-form'),
+    certificateForm: document.getElementById('certificate-form'),
+    // Nowe elementy dla listy faktur
+    invoicesBox: document.getElementById('invoicesBox'),
+    invoicesSummary: document.getElementById('invoicesSummary'),
+    invoicesTableBody: document.getElementById('invoicesTableBody')
+};
 
 // ============================================================================
-// PRZEŁĄCZNIK TOKEN/CERTYFIKAT (NOWE)
+// INICJALIZACJA
 // ============================================================================
 
-const methodButtons = document.querySelectorAll('.method-btn');
-const tokenForm = document.getElementById('token-form');
-const certificateForm = document.getElementById('certificate-form');
-const authMethodInput = document.getElementById('auth_method');
-const ksefTokenInput = document.getElementById('ksef_token');
-const certificateInput = document.getElementById('certificate');
-const privateKeyInput = document.getElementById('private_key');
-const keyPasswordInput = document.getElementById('key_password');
+// Ustaw domyślne daty (ostatni miesiąc)
+function initializeDates() {
+    const today = new Date();
+    const monthAgo = new Date();
+    monthAgo.setMonth(monthAgo.getMonth() - 1);
+    
+    elements.dateTo.value = today.toISOString().split('T')[0];
+    elements.dateFrom.value = monthAgo.toISOString().split('T')[0];
+}
 
-// Obsługa kliknięcia w przyciski przełącznika
-methodButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-        const method = btn.dataset.method;
-        
-        // Zmień aktywny przycisk
-        methodButtons.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        
-        // Przełącz formularze
-        if (method === 'token') {
-            tokenForm.classList.add('active');
-            certificateForm.classList.remove('active');
-            authMethodInput.value = 'token';
+// ============================================================================
+// OBSŁUGA PRZEŁĄCZNIKA METODY UWIERZYTELNIANIA
+// ============================================================================
+
+function initializeAuthMethodSwitcher() {
+    const methodButtons = document.querySelectorAll('.method-btn');
+    
+    methodButtons.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault(); // Zapobiegaj domyślnej akcji
             
-            // Ustaw required
-            ksefTokenInput.required = true;
-            certificateInput.required = false;
-            privateKeyInput.required = false;
-            keyPasswordInput.required = false;
-        } else {
-            tokenForm.classList.remove('active');
-            certificateForm.classList.add('active');
-            authMethodInput.value = 'certificate';
+            const method = this.getAttribute('data-method');
             
-            // Ustaw required
-            ksefTokenInput.required = false;
-            certificateInput.required = true;
-            privateKeyInput.required = true;
-            keyPasswordInput.required = true;
-        }
+            // Aktualizuj aktywny przycisk
+            methodButtons.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Ustaw wartość ukrytego pola
+            if (elements.authMethod) {
+                elements.authMethod.value = method;
+            }
+            
+            // Przełącz widoczność formularzy
+            if (method === 'token') {
+                if (elements.tokenForm) {
+                    elements.tokenForm.classList.add('active');
+                }
+                if (elements.certificateForm) {
+                    elements.certificateForm.classList.remove('active');
+                }
+            } else if (method === 'certificate') {
+                if (elements.tokenForm) {
+                    elements.tokenForm.classList.remove('active');
+                }
+                if (elements.certificateForm) {
+                    elements.certificateForm.classList.add('active');
+                }
+            }
+        });
     });
-});
-
-// Obsługa uploadu plików - pokazanie nazwy pliku
-certificateInput.addEventListener('change', (e) => {
-    const fileName = e.target.files[0]?.name || '';
-    document.getElementById('cert-file-name').textContent = fileName ? `✓ ${fileName}` : '';
-});
-
-privateKeyInput.addEventListener('change', (e) => {
-    const fileName = e.target.files[0]?.name || '';
-    document.getElementById('key-file-name').textContent = fileName ? `✓ ${fileName}` : '';
-});
+}
 
 // ============================================================================
 // OBSŁUGA FORMULARZA
 // ============================================================================
 
-form.addEventListener('submit', async (e) => {
+elements.form.addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    // Walidacja dla certyfikatu (NOWE)
-    const authMethod = authMethodInput.value;
-    if (authMethod === 'certificate') {
-        if (!certificateInput.files[0]) {
-            showError({
-                errorType: 'user_error',
-                title: 'Brak pliku certyfikatu',
-                message: 'Proszę wybrać plik certyfikatu (.crt)',
-                suggestions: ['Upewnij się, że wybrałeś plik z rozszerzeniem .crt lub .pem']
-            });
-            return;
-        }
-        if (!privateKeyInput.files[0]) {
-            showError({
-                errorType: 'user_error',
-                title: 'Brak klucza prywatnego',
-                message: 'Proszę wybrać plik klucza prywatnego (.key)',
-                suggestions: ['Upewnij się, że wybrałeś plik z rozszerzeniem .key lub .pem']
-            });
-            return;
-        }
-        if (!keyPasswordInput.value.trim()) {
-            showError({
-                errorType: 'user_error',
-                title: 'Brak hasła',
-                message: 'Proszę wpisać hasło do klucza prywatnego',
-                suggestions: ['Hasło jest wymagane do odszyfrowania klucza prywatnego']
-            });
-            return;
-        }
-    }
-    
-    // Reset
-    attemptCount = 0;
-    sessionId = null;
-    if (checkInterval) clearInterval(checkInterval);
+    // Reset stanu
+    resetState();
     
     // UI - start
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Przetwarzanie...';
-    statusPanel.className = 'status-panel show';
-    spinner.style.display = 'block';
-    checkmark.style.display = 'none';
-    errorIcon.style.display = 'none';
-    progressBar.style.display = 'block';
-    progressFill.style.width = '10%';
-    downloadList.style.display = 'none';
-    downloadList.innerHTML = '';
-    suggestionsList.style.display = 'none';
-    suggestionsList.innerHTML = '';
-    errorCodeEl.textContent = '';
-    warningIcon.style.display = 'none';
-    infoIcon.style.display = 'none';
+    setLoadingState();
     updateStatus('Łączenie z KSeF...', 'Autoryzacja i inicjacja importu');
     
     try {
         // Krok 1: Start importu
-        const formData = new FormData(form);
-        formData.append('action', 'start_import'); // POPRAWIONE: export → import
+        const formData = new FormData(elements.form);
+        formData.append('action', 'start_import');
         
-        const response = await fetch('api.php', {
+        // Debug - pokaż co wysyłamy
+        console.log('Wysyłam formularz:');
+        for (let [key, value] of formData.entries()) {
+            if (key === 'p12_password' || key === 'ksef_token') {
+                console.log(`  ${key}: ***`);
+            } else {
+                console.log(`  ${key}: ${value}`);
+            }
+        }
+        
+        const response = await fetch(CONFIG.apiEndpoint, {
             method: 'POST',
             body: formData
         });
         
         const data = await response.json();
         
+        console.log('Odpowiedź API:', data);
+        
         if (!data.success) {
-            if (data.errorType) {
-                showError(data);
+            if (data.errorType || data.error_type) {
+                showError({
+                    errorType: data.errorType || data.error_type,
+                    message: data.error || data.message,
+                    title: data.title || 'Błąd',
+                    suggestions: data.suggestions || []
+                });
                 return;
             }
             throw new Error(data.error || data.message || 'Nieznany błąd');
         }
         
         sessionId = data.sessionId;
-        progressFill.style.width = '30%';
+        elements.progressFill.style.width = '30%';
         updateStatus('Import rozpoczęty', `Reference: ${data.referenceNumber}`);
-        statusDetails.textContent = `Reference Number: ${data.referenceNumber}`;
+        elements.statusDetails.textContent = `Reference Number: ${data.referenceNumber}`;
         
         // Krok 2: Sprawdzaj status co 3 sekundy
-        checkInterval = setInterval(checkImportStatus, checkIntervalMs); // POPRAWIONE: export → import
-        checkImportStatus(); // Pierwsze sprawdzenie od razu
+        checkInterval = setInterval(checkExportStatus, CONFIG.checkIntervalMs);
+        checkExportStatus(); // Pierwsze sprawdzenie od razu
         
     } catch (error) {
+        console.error('Błąd:', error);
         // Sprawdź czy to odpowiedź z API z klasyfikacją
         if (error.errorType) {
             showError(error);
         } else {
-            showError(error.message);
+            showError({
+                errorType: 'app_error',
+                errorCode: 'UNKNOWN',
+                title: 'Wystąpił błąd',
+                message: error.message,
+                suggestions: ['Spróbuj ponownie']
+            });
         }
     }
 });
 
 // ============================================================================
-// SPRAWDZANIE STATUSU IMPORTU (POPRAWIONE: export → import)
+// SPRAWDZANIE STATUSU EKSPORTU
 // ============================================================================
 
-async function checkImportStatus() {
+async function checkExportStatus() {
     attemptCount++;
     
-    if (attemptCount > maxAttempts) {
+    if (attemptCount > CONFIG.maxAttempts) {
         clearInterval(checkInterval);
-        showError('Przekroczono limit czasu oczekiwania (3 minuty). Spróbuj ponownie później.');
+        showError({
+            errorType: 'info',
+            title: 'Przekroczono limit czasu',
+            message: 'Przekroczono limit czasu oczekiwania (3 minuty). Spróbuj ponownie później.',
+            suggestions: [
+                'Sprawdź czy eksport nie jest zbyt duży',
+                'Spróbuj zawęzić zakres dat',
+                'Sprawdź status ręcznie za kilka minut'
+            ]
+        });
         return;
     }
     
     // Update progress
-    const progress = 30 + (attemptCount / maxAttempts) * 60;
-    progressFill.style.width = `${Math.min(progress, 90)}%`;
-    attemptCounter.textContent = `Sprawdzanie statusu... (próba ${attemptCount}/${maxAttempts})`;
+    const progress = 30 + (attemptCount / CONFIG.maxAttempts) * 60;
+    elements.progressFill.style.width = `${Math.min(progress, 90)}%`;
+    elements.attemptCounter.textContent = `Sprawdzanie statusu... (próba ${attemptCount}/${CONFIG.maxAttempts})`;
     
     try {
-        const response = await fetch(`api.php?action=check_status&session=${encodeURIComponent(sessionId)}`);
+        const response = await fetch(`${CONFIG.apiEndpoint}?action=check_status&session=${encodeURIComponent(sessionId)}`);
         const data = await response.json();
         
         if (!data.success) {
@@ -219,11 +222,11 @@ async function checkImportStatus() {
             data.ready ? 'Import gotowy!' : 'Oczekiwanie na import...',
             data.message
         );
-        statusDetails.textContent = `Status: ${data.statusCode} - ${data.statusDesc}`;
+        elements.statusDetails.textContent = `Status: ${data.statusCode} - ${data.statusDesc}`;
         
         if (data.ready) {
             clearInterval(checkInterval);
-            showSuccess(data.filesCount);
+            await downloadAllParts(data.filesCount);
         }
         
     } catch (error) {
@@ -234,12 +237,190 @@ async function checkImportStatus() {
 }
 
 // ============================================================================
-// AKTUALIZACJA STATUSU
+// POBIERANIE WSZYSTKICH CZĘŚCI
 // ============================================================================
 
+async function downloadAllParts(filesCount) {
+    updateStatus('Pobieranie faktur...', `Pobieranie ${filesCount} paczek...`);
+    elements.progressFill.style.width = '95%';
+    
+    try {
+        // Pobierz wszystkie części sekwencyjnie
+        for (let i = 0; i < filesCount; i++) {
+            const url = `${CONFIG.apiEndpoint}?action=download&session=${encodeURIComponent(sessionId)}&part=${i}`;
+            const response = await fetch(url);
+            const result = await response.json();
+            
+            if (!result.success) {
+                console.error(`Błąd pobierania części ${i}:`, result.message);
+            }
+        }
+        
+        // Po pobraniu wszystkich - pokaż sukces i załaduj listę faktur
+        showSuccess(filesCount);
+        await loadInvoicesList();
+        
+    } catch (error) {
+        console.error('Download error:', error);
+        showError({
+            errorType: 'server_error',
+            title: 'Błąd pobierania',
+            message: error.message,
+            suggestions: ['Spróbuj ponownie']
+        });
+    }
+}
+
+// ============================================================================
+// ŁADOWANIE LISTY FAKTUR
+// ============================================================================
+
+async function loadInvoicesList() {
+    if (!sessionId) return;
+    if (!elements.invoicesBox) return; // Element może nie istnieć
+    
+    try {
+        const response = await fetch(`${CONFIG.apiEndpoint}?action=list_invoices&session=${encodeURIComponent(sessionId)}`);
+        const data = await response.json();
+        
+        if (!data.success || !data.invoices || data.invoices.length === 0) {
+            elements.invoicesBox.style.display = 'none';
+            return;
+        }
+        
+        // Pokaż sekcję faktur
+        elements.invoicesBox.style.display = 'block';
+        
+        // Podsumowanie
+        const totalGross = data.invoices.reduce((sum, inv) => sum + (inv.grossAmount || 0), 0);
+        const totalNet = data.invoices.reduce((sum, inv) => sum + (inv.netAmount || 0), 0);
+        const totalVat = data.invoices.reduce((sum, inv) => sum + (inv.vatAmount || 0), 0);
+        
+        elements.invoicesSummary.innerHTML = `
+            <div class="summary-row">
+                <span>Liczba faktur: <strong>${data.count}</strong></span>
+                <span>Suma netto: <strong>${formatCurrency(totalNet)}</strong></span>
+                <span>VAT: <strong>${formatCurrency(totalVat)}</strong></span>
+                <span>Suma brutto: <strong>${formatCurrency(totalGross)}</strong></span>
+            </div>
+        `;
+        
+        // Wypełnij tabelę
+        elements.invoicesTableBody.innerHTML = '';
+        
+        data.invoices.forEach(invoice => {
+            const row = document.createElement('tr');
+            row.className = 'invoice-row';
+            row.style.cursor = 'pointer';
+            
+            // Kliknięcie otwiera podgląd faktury
+            row.addEventListener('click', () => {
+                if (invoice.ksefNumber && invoice.ksefNumber !== '-') {
+                    window.open(`invoice.html?ksef=${encodeURIComponent(invoice.ksefNumber)}`, '_blank');
+                }
+            });
+            
+            // Określ czy to faktura sprzedaży czy zakupu (na podstawie Subject1/Subject2)
+            const subjectType = document.getElementById('subject_type').value;
+            const kontrahent = subjectType === 'Subject1' 
+                ? `${invoice.buyer} (${invoice.buyerNip})`
+                : `${invoice.seller} (${invoice.sellerNip})`;
+            
+            row.innerHTML = `
+                <td class="invoice-number">${escapeHtml(invoice.invoiceNumber)}</td>
+                <td>${formatDate(invoice.issueDate)}</td>
+                <td class="kontrahent-cell" title="${escapeHtml(kontrahent)}">${escapeHtml(truncate(kontrahent, 40))}</td>
+                <td class="amount-col">${formatCurrency(invoice.grossAmount)} ${invoice.currency}</td>
+            `;
+            
+            elements.invoicesTableBody.appendChild(row);
+        });
+        
+        // Scroll do listy faktur
+        elements.invoicesBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        
+    } catch (error) {
+        console.error('Error loading invoices list:', error);
+    }
+}
+
+// ============================================================================
+// FUNKCJE POMOCNICZE - FORMATOWANIE
+// ============================================================================
+
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('pl-PL', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(amount || 0);
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('pl-PL');
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function truncate(str, maxLength) {
+    if (!str) return '';
+    if (str.length <= maxLength) return str;
+    return str.substring(0, maxLength - 3) + '...';
+}
+
+// ============================================================================
+// ZARZĄDZANIE STANEM UI
+// ============================================================================
+
+function resetState() {
+    attemptCount = 0;
+    sessionId = null;
+    if (checkInterval) clearInterval(checkInterval);
+    
+    // Ukryj listę faktur przy nowym imporcie
+    if (elements.invoicesBox) {
+        elements.invoicesBox.style.display = 'none';
+    }
+    if (elements.invoicesTableBody) {
+        elements.invoicesTableBody.innerHTML = '';
+    }
+}
+
+function setLoadingState() {
+    elements.submitBtn.disabled = true;
+    elements.submitBtn.textContent = 'Przetwarzanie...';
+    elements.statusPanel.className = 'status-panel show';
+    elements.spinner.style.display = 'block';
+    elements.checkmark.style.display = 'none';
+    elements.errorIcon.style.display = 'none';
+    elements.warningIcon.style.display = 'none';
+    elements.infoIcon.style.display = 'none';
+    elements.progressBar.style.display = 'block';
+    elements.progressFill.style.width = '10%';
+    elements.downloadList.style.display = 'none';
+    elements.downloadList.innerHTML = '';
+    elements.suggestionsList.style.display = 'none';
+    elements.suggestionsList.innerHTML = '';
+    elements.errorCode.textContent = '';
+}
+
 function updateStatus(title, message) {
-    statusTitle.textContent = title;
-    statusMessage.textContent = message;
+    elements.statusTitle.textContent = title;
+    elements.statusMessage.textContent = message;
+}
+
+function hideAllIcons() {
+    elements.spinner.style.display = 'none';
+    elements.checkmark.style.display = 'none';
+    elements.errorIcon.style.display = 'none';
+    elements.warningIcon.style.display = 'none';
+    elements.infoIcon.style.display = 'none';
 }
 
 // ============================================================================
@@ -247,37 +428,20 @@ function updateStatus(title, message) {
 // ============================================================================
 
 function showSuccess(filesCount) {
-    statusPanel.className = 'status-panel show success';
-    spinner.style.display = 'none';
-    checkmark.style.display = 'flex';
-    progressFill.style.width = '100%';
-    progressBar.style.display = 'none';
-    attemptCounter.textContent = '';
+    elements.statusPanel.className = 'status-panel show success';
+    hideAllIcons();
+    elements.checkmark.style.display = 'flex';
+    elements.progressFill.style.width = '100%';
+    elements.progressBar.style.display = 'none';
+    elements.attemptCounter.textContent = '';
     
-    statusTitle.textContent = 'Import zakończony!';
-    statusMessage.textContent = `Znaleziono ${filesCount} plik(ów) do pobrania.`;
-    
-    // Generuj przyciski pobierania
-    downloadList.style.display = 'block';
-    downloadList.innerHTML = '';
-    
-    for (let i = 0; i < filesCount; i++) {
-        const item = document.createElement('div');
-        item.className = 'download-item';
-        item.innerHTML = `
-            <span>📦 Plik ${i + 1} z ${filesCount}</span>
-            <a href="api.php?action=download&session=${encodeURIComponent(sessionId)}&part=${i}" 
-               class="download-btn" 
-               download>
-                Pobierz ZIP
-            </a>
-        `;
-        downloadList.appendChild(item);
-    }
+    elements.statusTitle.textContent = 'Import zakończony!';
+    elements.statusMessage.textContent = `Pobrano ${filesCount} paczek. Faktury zapisane w folderze xml/`;
+    elements.statusDetails.textContent = '';
     
     // Odblokuj formularz
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'Importuj ponownie';
+    elements.submitBtn.disabled = false;
+    elements.submitBtn.textContent = 'Importuj ponownie';
 }
 
 // ============================================================================
@@ -287,14 +451,9 @@ function showSuccess(filesCount) {
 function showError(data) {
     if (checkInterval) clearInterval(checkInterval);
     
-    // Ukryj wszystkie ikony
-    spinner.style.display = 'none';
-    checkmark.style.display = 'none';
-    errorIcon.style.display = 'none';
-    warningIcon.style.display = 'none';
-    infoIcon.style.display = 'none';
-    progressBar.style.display = 'none';
-    attemptCounter.textContent = '';
+    hideAllIcons();
+    elements.progressBar.style.display = 'none';
+    elements.attemptCounter.textContent = '';
     
     // Obsługa prostego stringa (stary format)
     if (typeof data === 'string') {
@@ -310,76 +469,184 @@ function showError(data) {
     // Wybierz styl i ikonę w zależności od typu błędu
     switch (data.errorType) {
         case 'user_error':
-            statusPanel.className = 'status-panel show warning';
-            warningIcon.style.display = 'flex';
-            statusTitle.textContent = (data.title || 'Błąd danych');
+            elements.statusPanel.className = 'status-panel show warning';
+            elements.warningIcon.style.display = 'flex';
+            elements.statusTitle.textContent = (data.title || 'Błąd danych');
             break;
         case 'info':
-            statusPanel.className = 'status-panel show info';
-            infoIcon.style.display = 'flex';
-            statusTitle.textContent = (data.title || 'Informacja');
+            elements.statusPanel.className = 'status-panel show info';
+            elements.infoIcon.style.display = 'flex';
+            elements.statusTitle.textContent = (data.title || 'Informacja');
             break;
         case 'server_error':
-            statusPanel.className = 'status-panel show error';
-            errorIcon.style.display = 'flex';
-            statusTitle.textContent = (data.title || 'Błąd serwera');
+            elements.statusPanel.className = 'status-panel show error';
+            elements.errorIcon.style.display = 'flex';
+            elements.statusTitle.textContent = (data.title || 'Błąd serwera');
             break;
         case 'app_error':
-            statusPanel.className = 'status-panel show error';
-            errorIcon.style.display = 'flex';
-            statusTitle.textContent = (data.title || 'Błąd aplikacji');
+            elements.statusPanel.className = 'status-panel show error';
+            elements.errorIcon.style.display = 'flex';
+            elements.statusTitle.textContent = (data.title || 'Błąd aplikacji');
             break;
         default:
-            statusPanel.className = 'status-panel show error';
-            errorIcon.style.display = 'flex';
-            statusTitle.textContent = (data.title || 'Wystąpił błąd');
+            elements.statusPanel.className = 'status-panel show error';
+            elements.errorIcon.style.display = 'flex';
+            elements.statusTitle.textContent = (data.title || 'Wystąpił błąd');
     }
     
-    statusMessage.textContent = data.message || 'Nieznany błąd';
-    statusDetails.textContent = '';
+    elements.statusMessage.textContent = data.message || 'Nieznany błąd';
+    elements.statusDetails.textContent = '';
     
     // Pokaż sugestie
     if (data.suggestions && data.suggestions.length > 0) {
-        suggestionsList.style.display = 'block';
-        suggestionsList.innerHTML = '<strong>Co sprawdzić:</strong><ul>' + 
+        elements.suggestionsList.style.display = 'block';
+        elements.suggestionsList.innerHTML = '<strong>Co sprawdzić:</strong><ul>' + 
             data.suggestions.map(s => `<li>${s}</li>`).join('') + 
             '</ul>';
     } else {
-        suggestionsList.style.display = 'none';
+        elements.suggestionsList.style.display = 'none';
     }
     
     // Pokaż kod błędu
     if (data.errorCode) {
-        errorCodeEl.textContent = `Kod błędu: ${data.errorCode}`;
+        elements.errorCode.textContent = `Kod błędu: ${data.errorCode}`;
     }
     
     // Odblokuj formularz
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'Spróbuj ponownie';
+    elements.submitBtn.disabled = false;
+    elements.submitBtn.textContent = 'Spróbuj ponownie';
 }
 
 // ============================================================================
-// INICJALIZACJA - USTAWIENIE DOMYŚLNYCH DAT
+// URUCHOMIENIE APLIKACJI
 // ============================================================================
 
-// Ustaw domyślne daty (ostatni miesiąc)
-const today = new Date();
-const monthAgo = new Date();
-monthAgo.setMonth(monthAgo.getMonth() - 1);
+// Inicjalizuj daty przy załadowaniu strony
+initializeDates();
 
-document.getElementById('date_to').value = today.toISOString().split('T')[0];
-document.getElementById('date_from').value = monthAgo.toISOString().split('T')[0];
+// Inicjalizuj przełącznik metody uwierzytelniania
+initializeAuthMethodSwitcher();
 
 // ============================================================================
-// AUTOMATYCZNE WYKRYWANIE NIP Z TOKENA
+// LOGIKA DLA SETTINGS.HTML
 // ============================================================================
 
-// Automatyczne wykrywanie NIP z tokena
-document.getElementById('ksef_token').addEventListener('input', function(e) {
-    const token = e.target.value;
-    const nipMatch = token.match(/nip-(\d{10})/);
-    
-    if (nipMatch) {
-        document.getElementById('nip').value = nipMatch[1];
+// Sprawdź czy jesteśmy na stronie settings.html
+if (document.getElementById('settingsForm')) {
+    initializeSettings();
+}
+
+function initializeSettings() {
+    const settingsElements = {
+        form: document.getElementById('settingsForm'),
+        saveBtn: document.getElementById('saveBtn'),
+        saveMessage: document.getElementById('saveMessage'),
+        companyName: document.getElementById('companyName'),
+        companyNip: document.getElementById('companyNip'),
+        companyToken: document.getElementById('companyToken'),
+        companyEnv: document.getElementById('companyEnv')
+    };
+
+    // ============================================================================
+    // ŁADOWANIE USTAWIEŃ
+    // ============================================================================
+
+    async function loadSettings() {
+        try {
+            const response = await fetch(`${CONFIG.apiEndpoint}?action=settings_get`);
+            const data = await response.json();
+            
+            if (!data.success) {
+                showSettingsMessage('error', 'Błąd ładowania: ' + (data.error || 'Nieznany błąd'));
+                return;
+            }
+            
+            settingsElements.companyName.value = data.data.company_name || '';
+            settingsElements.companyNip.value = data.data.nip || '';
+            settingsElements.companyToken.value = data.data.ksef_token || '';
+            settingsElements.companyEnv.value = data.data.env || 'demo';
+            
+        } catch (error) {
+            showSettingsMessage('error', 'Błąd połączenia z serwerem');
+            console.error('Load settings error:', error);
+        }
     }
-});
+
+    // ============================================================================
+    // ZAPISYWANIE USTAWIEŃ
+    // ============================================================================
+
+    async function saveSettings(e) {
+        e.preventDefault();
+        
+        // Walidacja NIP
+        const nip = settingsElements.companyNip.value.replace(/[^0-9]/g, '');
+        if (nip && nip.length !== 10) {
+            showSettingsMessage('error', 'NIP musi mieć dokładnie 10 cyfr');
+            return;
+        }
+        
+        // Blokuj przycisk podczas zapisywania
+        settingsElements.saveBtn.disabled = true;
+        settingsElements.saveBtn.textContent = 'Zapisywanie...';
+        
+        try {
+            const payload = {
+                company_name: settingsElements.companyName.value,
+                nip: nip,
+                ksef_token: settingsElements.companyToken.value,
+                env: settingsElements.companyEnv.value
+            };
+            
+            const response = await fetch(`${CONFIG.apiEndpoint}?action=settings_save`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showSettingsMessage('success', '✓ Ustawienia zostały zapisane pomyślnie!');
+            } else {
+                showSettingsMessage('error', '✕ Błąd: ' + (result.error || 'Nieznany błąd'));
+            }
+            
+        } catch (error) {
+            showSettingsMessage('error', '✕ Błąd połączenia z serwerem');
+            console.error('Save settings error:', error);
+        } finally {
+            settingsElements.saveBtn.disabled = false;
+            settingsElements.saveBtn.textContent = 'Zapisz ustawienia';
+        }
+    }
+
+    // ============================================================================
+    // WYŚWIETLANIE KOMUNIKATÓW
+    // ============================================================================
+
+    function showSettingsMessage(type, message) {
+        settingsElements.saveMessage.className = `save-message ${type} show`;
+        settingsElements.saveMessage.textContent = message;
+        
+        // Ukryj komunikat po 5 sekundach
+        setTimeout(() => {
+            settingsElements.saveMessage.classList.remove('show');
+        }, 5000);
+    }
+
+    // ============================================================================
+    // FORMATOWANIE NIP (usuwa wszystko oprócz cyfr)
+    // ============================================================================
+
+    settingsElements.companyNip.addEventListener('input', (e) => {
+        e.target.value = e.target.value.replace(/[^0-9]/g, '');
+    });
+
+    // ============================================================================
+    // INICJALIZACJA SETTINGS
+    // ============================================================================
+
+    settingsElements.form.addEventListener('submit', saveSettings);
+    loadSettings();
+}

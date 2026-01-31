@@ -2,14 +2,19 @@
 
 namespace KSeF\Api\Actions;
 
-use KSeF\Auth\CertificateAuthenticator;
-use KSeF\Export\KsefExporter;
+use N1ebieski\KSEFClient\ClientBuilder;
+use N1ebieski\KSEFClient\ValueObjects\Mode;
+use N1ebieski\KSEFClient\Factories\EncryptionKeyFactory;
+use N1ebieski\KSEFClient\Support\Utility;
 use Exception;
+use DateTimeImmutable;
 
 class StartImportWithCertificateAction
 {
     public function execute(): void
     {
+        header('Content-Type: application/json; charset=utf-8');
+
         try {
             // 1. Walidacja POST
             $this->validateRequest();
@@ -17,86 +22,71 @@ class StartImportWithCertificateAction
             // 2. Pobierz dane z formularza
             $nip = $_POST['nip'];
             $env = $_POST['env'] ?? 'demo';
-            $password = $_POST['key_password'];
+            $p12Password = $_POST['p12_password'];
             $dateFrom = $_POST['date_from'];
             $dateTo = $_POST['date_to'];
             $subjectType = $_POST['subject_type'] ?? 'Subject1';
 
-            // 3. Walidacja uploadowanych plików
-            if (!isset($_FILES['certificate']) || $_FILES['certificate']['error'] !== UPLOAD_ERR_OK) {
-                throw new Exception('Błąd uploadu certyfikatu');
+            // 3. Ścieżka do certyfikatu .p12 (stała lokalizacja)
+            $p12Path = dirname(__DIR__, 3) . '/certs/AkceptujFaktury_pl.p12';
+
+            if (!file_exists($p12Path)) {
+                throw new Exception("Nie znaleziono pliku certyfikatu .p12: {$p12Path}");
             }
 
-            if (!isset($_FILES['private_key']) || $_FILES['private_key']['error'] !== UPLOAD_ERR_OK) {
-                throw new Exception('Błąd uploadu klucza prywatnego');
-            }
+            // 4. Utwórz unikalny klucz szyfrowania (potrzebny do eksportu/pobierania)
+            $encryptionKey = EncryptionKeyFactory::makeRandom();
 
-            // 4. Utwórz katalog sesji
+            // 5. Utwórz klienta KSeF z biblioteką n1ebieski
+            $client = (new ClientBuilder())
+                ->withMode($this->getMode($env))
+                ->withCertificatePath($p12Path, $p12Password)
+                ->withIdentifier($nip)
+                ->withEncryptionKey($encryptionKey)
+                ->withValidateXml(false) // wyłącz walidację dla szybkości
+                ->build();
+
+            // 6. Uruchom eksport faktur
+            $initResponse = $client->invoices()->exports()->init([
+                'filters' => [
+                    'subjectType' => $subjectType,
+                    'dateRange' => [
+                        'dateType' => 'Invoicing',
+                        'from' => new DateTimeImmutable($dateFrom),
+                        'to' => new DateTimeImmutable($dateTo)
+                    ],
+                ]
+            ])->object();
+
+            $referenceNumber = $initResponse->referenceNumber;
+
+            // 7. Utwórz katalog sesji i zapisz dane
             $sessionId = uniqid('cert_', true);
-            // Katalog na pliki certyfikatu
-            $certDir = dirname(__DIR__, 3) . '/temp/cert_' . $sessionId;
-            if (!is_dir($certDir)) {
-                mkdir($certDir, 0755, true);
+            $sessionDir = dirname(__DIR__, 3) . '/sessions/' . $sessionId;
+            
+            if (!is_dir($sessionDir)) {
+                mkdir($sessionDir, 0755, true);
             }
 
-            // 5. Zapisz pliki tymczasowo
-            $certPath = $certDir . '/certificate.crt';
-            $keyPath = $certDir . '/private_key.key';
-
-            move_uploaded_file($_FILES['certificate']['tmp_name'], $certPath);
-            move_uploaded_file($_FILES['private_key']['tmp_name'], $keyPath);
-
-            // 6. Uwierzytelnij certyfikatem
-            $authenticator = new CertificateAuthenticator($env);
-            $authData = $authenticator->authenticate(
-                $certPath,
-                $keyPath,
-                $password,
-                $nip
-            );
-
-            $accessToken = $authData['accessToken'];
-
-            // 7. Konwertuj daty do ISO 8601
-            $dateFromISO = $this->convertDateToISO($dateFrom);
-            $dateToISO = $this->convertDateToISO($dateTo);
-
-            // 8. Przygotuj ścieżki
-            $baseUrl = $this->getBaseUrl($env);
-            $publicKeyPath = dirname(__DIR__, 2) . '/Export/public_key_symetric_encription.pem';
-
-            // 9. Uruchom eksport
-            $exporter = new KsefExporter($baseUrl, $publicKeyPath);
-            
-            $result = $exporter->sendExportRequest(
-                $accessToken,      // 1. accessToken
-                $subjectType,      // 2. subjectType
-                $dateFromISO,      // 3. dateFrom
-                $dateToISO         // 4. dateTo
-            );
-
-            $referenceNumber = $result['referenceNumber'];
-
-            // 10. Pobierz klucze szyfrowania
-            $encFile = dirname(__DIR__, 2) . '/Export/last_export_encryption.json';
-            $encData = json_decode(file_get_contents($encFile), true);
-
-            // 11. Zapisz dane sesji
+            // 8. Zapisz dane sesji (w tym klucz szyfrowania!)
             $sessionData = [
                 'sessionId' => $sessionId,
                 'referenceNumber' => $referenceNumber,
-                'accessToken' => $accessToken,
-                'baseUrl' => $baseUrl,
-                'rawSymmetricKey' => $encData['rawSymmetricKey'],
-                'rawIV' => $encData['rawIV'],
+                'encryptionKey' => base64_encode(serialize($encryptionKey)),
+                'env' => $env,
+                'nip' => $nip,
+                'p12Path' => $p12Path,
+                'p12Password' => $p12Password, // W produkcji zaszyfrować!
                 'auth_method' => 'certificate',
                 'created_at' => date('Y-m-d H:i:s')
             ];
 
-            // Zapisz sesję przez Helpers (kompatybilne z CheckStatus i Download)
-            \KSeF\Api\Helpers::saveSession($sessionId, $sessionData);
+            file_put_contents(
+                $sessionDir . '/session.json',
+                json_encode($sessionData, JSON_PRETTY_PRINT)
+            );
 
-            // 11. Odpowiedź sukcesu
+            // 9. Odpowiedź sukcesu
             echo json_encode([
                 'success' => true,
                 'sessionId' => $sessionId,
@@ -104,8 +94,9 @@ class StartImportWithCertificateAction
             ]);
 
         } catch (Exception $e) {
-            // Klasyfikuj błędy
             $errorType = $this->classifyError($e);
+            
+            http_response_code($errorType === 'user_error' ? 400 : 500);
             
             echo json_encode([
                 'success' => false,
@@ -117,47 +108,43 @@ class StartImportWithCertificateAction
 
     private function validateRequest(): void
     {
-        $required = ['nip', 'key_password', 'date_from', 'date_to'];
+        $required = ['nip', 'p12_password', 'date_from', 'date_to'];
         
         foreach ($required as $field) {
             if (!isset($_POST[$field]) || empty($_POST[$field])) {
                 throw new Exception("Pole {$field} jest wymagane");
             }
         }
+
+        // Walidacja NIP
+        if (!preg_match('/^\d{10}$/', $_POST['nip'])) {
+            throw new Exception("NIP musi składać się z 10 cyfr");
+        }
     }
 
-    private function convertDateToISO(string $date): string
+    private function getMode(string $env): Mode
     {
-        $timestamp = strtotime($date);
-        return date('Y-m-d\TH:i:s.000+00:00', $timestamp);
-    }
-
-    private function getBaseUrl(string $environment): string
-    {
-        return match (strtolower($environment)) {
-            'demo' => 'https://ksef-demo.mf.gov.pl',
-            'test' => 'https://ksef-test.mf.gov.pl',
-            'prod', 'production' => 'https://ksef.mf.gov.pl',
-            default => throw new Exception("Nieznane środowisko: {$environment}")
+        return match (strtolower($env)) {
+            'demo' => Mode::Demo,
+            'test' => Mode::Test,
+            'prod', 'production' => Mode::Production,
+            default => throw new Exception("Nieznane środowisko: {$env}")
         };
     }
 
     private function classifyError(Exception $e): string
     {
-        $message = $e->getMessage();
+        $message = strtolower($e->getMessage());
 
         // Błędy użytkownika
-        if (stripos($message, 'hasło') !== false ||
-            stripos($message, 'password') !== false) {
-            return 'user_error';
+        $userErrors = ['hasło', 'password', 'certyfikat', 'certificate', 'nip', 'uprawnie'];
+        
+        foreach ($userErrors as $keyword) {
+            if (strpos($message, $keyword) !== false) {
+                return 'user_error';
+            }
         }
 
-        if (stripos($message, 'certyfikat') !== false ||
-            stripos($message, 'certificate') !== false) {
-            return 'user_error';
-        }
-
-        // Błędy aplikacji
         return 'app_error';
     }
 }
