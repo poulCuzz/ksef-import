@@ -1,0 +1,167 @@
+/* ===========================================
+   STYLE DLA FORMULARZA CERTYFIKATU
+   Dodaj do styles.css lub dołącz osobno
+   =========================================== */
+
+/* Przełącznik metody uwierzytelniania */
+.auth-method-switcher {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 5px;
+    background: #f0f0f0;
+    border-radius: 8px;
+}
+
+.method-btn {
+    flex: 1;
+    padding: 12px 20px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    color: #666;
+}
+
+.method-btn:hover {
+    background: rgba(255,255,255,0.5);
+}
+
+.method-btn.active {
+    background: #fff;
+    color: #2563eb;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Formularze uwierzytelniania */
+.auth-form {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.auth-form.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Info box dla certyfikatu */
+.cert-info-box {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+    border: 1px solid #7dd3fc;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.cert-info-box .cert-icon {
+    font-size: 32px;
+}
+
+.cert-info-box .cert-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.cert-info-box .cert-text strong {
+    color: #0369a1;
+    font-size: 14px;
+}
+
+.cert-info-box .cert-text span {
+    color: #0c4a6e;
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+/* Upload plików */
+input[type="file"] {
+    display: none;
+}
+
+.file-upload-label {
+    display: inline-block;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    border: 2px dashed #94a3b8;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+    color: #475569;
+}
+
+.file-upload-label:hover {
+    border-color: #2563eb;
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    color: #2563eb;
+}
+
+.file-name {
+    display: block;
+    margin-top: 8px;
+    font-size: 13px;
+    color: #059669;
+    font-weight: 500;
+}
+
+.file-name:empty::before {
+    content: "Nie wybrano pliku";
+    color: #9ca3af;
+    font-weight: normal;
+}
+
+/* Hint pod polem */
+.hint {
+    display: block;
+    margin-top: 5px;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+/* Ostrzeżenie o datach */
+.date-hint {
+    text-align: center;
+    margin: -10px 0 15px 0;
+}
+
+.date-hint small {
+    color: #d97706;
+    font-size: 12px;
+}
+
+/* Date row */
+.date-row {
+    display: flex;
+    gap: 15px;
+}
+
+.date-row .form-group {
+    flex: 1;
+}
+
+/* Responsywność */
+@media (max-width: 500px) {
+    .auth-method-switcher {
+        flex-direction: column;
+    }
+    
+    .date-row {
+        flex-direction: column;
+        gap: 0;
+    }
+    
+    .cert-info-box {
+        flex-direction: column;
+        text-align: center;
+    }
+}

@@ -7,504 +7,540 @@ use DOMXPath;
 use Exception;
 
 /**
- * Uwierzytelnianie certyfikatem - własna implementacja XAdES-BES
+ * Uwierzytelnianie w KSeF 2.0 za pomocą certyfikatu i podpisu XAdES-BES
  * 
- * Oparte na analizie:
- * - https://gist.github.com/N1ebieski/7a98f886af26cc9922af8246eddf73c7
- * - https://github.com/CIRFMF/ksef-docs/blob/main/uwierzytelnianie.md
+ * Proces:
+ * 1. POST /auth/challenge - pobierz challenge + timestamp
+ * 2. Zbuduj XML AuthTokenRequest
+ * 3. Podpisz XML w formacie XAdES-BES
+ * 4. POST /auth/xades-signature - wyślij podpisany XML
+ * 5. GET /auth/{referenceNumber} - czekaj na status 200
+ * 6. POST /auth/token/redeem - pobierz accessToken + refreshToken
  */
 class CertificateAuthenticator
 {
     private string $baseUrl;
+    private string $certPath;
+    private string $keyPath;
+    private string $keyPassword;
+    private string $nip;
+    
+    // Cache dla certyfikatu i klucza
+    private $certificate = null;
+    private $privateKey = null;
 
     public function __construct(string $environment = 'demo')
     {
-        $this->baseUrl = $this->getBaseUrl($environment);
+        $this->baseUrl = match (strtolower($environment)) {
+            'demo' => 'https://api-demo.ksef.mf.gov.pl',
+            'test' => 'https://api-test.ksef.mf.gov.pl',
+            'prod', 'production' => 'https://api.ksef.mf.gov.pl',
+            default => throw new Exception("Nieznane środowisko: {$environment}")
+        };
     }
 
     /**
-     * Pełna autoryzacja certyfikatem
+     * Główna metoda uwierzytelniania
+     * 
+     * @return array ['accessToken' => string, 'refreshToken' => string, 'validUntil' => string]
      */
     public function authenticate(
         string $certPath,
         string $keyPath,
-        string $password,
+        string $keyPassword,
         string $nip
     ): array {
-        // Walidacja plików
-        if (!file_exists($certPath)) {
-            throw new Exception("Plik certyfikatu nie istnieje: {$certPath}");
+        $this->certPath = $certPath;
+        $this->keyPath = $keyPath;
+        $this->keyPassword = $keyPassword;
+        $this->nip = $nip;
+
+        // 1. Wczytaj certyfikat i klucz
+        $this->loadCertificateAndKey();
+
+        // 2. Pobierz challenge
+        $challengeData = $this->getChallenge();
+        $challenge = $challengeData['challenge'];
+        $timestamp = $challengeData['timestamp'];
+
+        // 3. Zbuduj XML AuthTokenRequest
+        $xml = $this->buildAuthTokenRequest($challenge);
+
+        // 4. Podpisz XML (XAdES-BES)
+        $signedXml = $this->signXades($xml);
+
+        // 5. Wyślij podpisany XML
+        $authResponse = $this->submitSignedXml($signedXml);
+        $referenceNumber = $authResponse['referenceNumber'];
+        $authenticationToken = $authResponse['authenticationToken']['token'];
+
+        // 6. Czekaj na status 200
+        $this->waitForAuthStatus($referenceNumber, $authenticationToken);
+
+        // 7. Pobierz accessToken
+        $tokens = $this->redeemToken($authenticationToken);
+
+        return $tokens;
+    }
+
+    /**
+     * Wczytaj certyfikat i klucz prywatny
+     */
+    private function loadCertificateAndKey(): void
+    {
+        // Certyfikat
+        $certContent = file_get_contents($this->certPath);
+        if ($certContent === false) {
+            throw new Exception("Nie można wczytać certyfikatu: {$this->certPath}");
         }
         
-        if (!file_exists($keyPath)) {
-            throw new Exception("Plik klucza nie istnieje: {$keyPath}");
+        $this->certificate = openssl_x509_read($certContent);
+        if ($this->certificate === false) {
+            throw new Exception("Nieprawidłowy format certyfikatu");
         }
 
-        try {
-            // KROK 1: Pobierz challenge
-            $challengeData = $this->getChallenge($nip);
-            $challenge = $challengeData['challenge'];
+        // Klucz prywatny
+        $keyContent = file_get_contents($this->keyPath);
+        if ($keyContent === false) {
+            throw new Exception("Nie można wczytać klucza prywatnego: {$this->keyPath}");
+        }
 
-            // KROK 2: Wczytaj certyfikat i klucz
-            $cert = $this->loadCertificate($certPath);
-            $privateKey = $this->loadPrivateKey($keyPath, $password);
+        $this->privateKey = openssl_pkey_get_private($keyContent, $this->keyPassword);
+        if ($this->privateKey === false) {
+            throw new Exception("Nieprawidłowe hasło do klucza prywatnego lub nieprawidłowy format klucza");
+        }
 
-            // KROK 3: Utwórz niepodpisany XML AuthTokenRequest
-            $unsignedXml = $this->createAuthTokenRequestXml($challenge, $nip);
-
-            // KROK 4: Podpisz XML używając XAdES-BES
-            $signedXml = $this->signXmlWithXAdES(
-                $unsignedXml,
-                $cert,
-                $privateKey
-            );
-
-            // KROK 5: Wyślij podpisany XML do KSeF
-            $authResponse = $this->sendXAdESSignature($signedXml);
-            $referenceNumber = $authResponse['referenceNumber'];
-
-            // KROK 6: Czekaj na sessionToken
-            $sessionToken = $this->waitForSessionToken($referenceNumber);
-
-            return [
-                'accessToken' => $sessionToken,
-                'refreshToken' => $sessionToken
-            ];
-
-        } catch (\Throwable $e) {
-            // Klasyfikuj błędy
-            throw $this->classifyError($e);
+        // Sprawdź czy klucz pasuje do certyfikatu
+        if (!openssl_x509_check_private_key($this->certificate, $this->privateKey)) {
+            throw new Exception("Klucz prywatny nie pasuje do certyfikatu");
         }
     }
 
     /**
-     * KROK 1: Pobierz challenge z KSeF
+     * Krok 1: Pobierz challenge z KSeF
      */
-    private function getChallenge(string $nip): array
+    private function getChallenge(): array
     {
-        $url = $this->baseUrl . '/auth/challenge';
+        $url = "{$this->baseUrl}/v2/auth/challenge";
         
         $payload = json_encode([
             'contextIdentifier' => [
-                'type' => 'Nip',
-                'identifier' => $nip
+                'type' => 'nip',
+                'identifier' => $this->nip
             ]
         ]);
 
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST => true,
-            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
-            CURLOPT_POSTFIELDS => $payload
+        $response = $this->httpRequest('POST', $url, $payload, [
+            'Content-Type: application/json'
         ]);
 
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($httpCode !== 200 && $httpCode !== 201) {
-            throw new Exception("Błąd pobierania challenge: HTTP $httpCode, URL: $url, Response: $response");
+        if (!isset($response['challenge']) || !isset($response['timestamp'])) {
+            throw new Exception("Nieprawidłowa odpowiedź challenge: " . json_encode($response));
         }
 
-        $data = json_decode($response, true);
-        
-        if (!isset($data['challenge'])) {
-            throw new Exception("Brak challenge w odpowiedzi");
-        }
-
-        return $data;
+        return $response;
     }
 
     /**
-     * KROK 2a: Wczytaj certyfikat
+     * Krok 2: Zbuduj XML AuthTokenRequest
      */
-    private function loadCertificate(string $certPath): array
+    private function buildAuthTokenRequest(string $challenge): string
     {
-        $certContent = file_get_contents($certPath);
-        $cert = openssl_x509_read($certContent);
+        $xml = new DOMDocument('1.0', 'UTF-8');
+        $xml->formatOutput = false;
         
-        if ($cert === false) {
-            throw new Exception("Nie można wczytać certyfikatu");
-        }
+        // Root element
+        $root = $xml->createElementNS('http://ksef.mf.gov.pl/schema/auth', 'AuthTokenRequest');
+        $root->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:xsi', 'http://www.w3.org/2001/XMLSchema-instance');
+        $root->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:xsd', 'http://www.w3.org/2001/XMLSchema');
+        $xml->appendChild($root);
 
-        // Pobierz informacje z certyfikatu
-        $certInfo = openssl_x509_parse($cert);
-        
-        // Certyfikat w Base64 (bez BEGIN/END)
-        openssl_x509_export($cert, $certPem);
-        $certBase64 = $this->extractCertificateBase64($certPem);
+        // Challenge
+        $challengeEl = $xml->createElement('Challenge', $challenge);
+        $root->appendChild($challengeEl);
 
-        // SHA-256 digest certyfikatu
-        $certDigest = base64_encode(openssl_x509_fingerprint($cert, 'sha256', true));
+        // ContextIdentifier
+        $contextEl = $xml->createElement('ContextIdentifier');
+        $contextEl->appendChild($xml->createElement('Type', 'nip'));
+        $contextEl->appendChild($xml->createElement('Identifier', $this->nip));
+        $root->appendChild($contextEl);
 
-        return [
-            'resource' => $cert,
-            'info' => $certInfo,
-            'base64' => $certBase64,
-            'digest' => $certDigest
-        ];
+
+        // SubjectIdentifierType
+        $subjectEl = $xml->createElement('SubjectIdentifierType', 'subjectIdentifierByCertificate');
+        $root->appendChild($subjectEl);
+
+        return $xml->saveXML();
     }
 
     /**
-     * KROK 2b: Wczytaj klucz prywatny
+     * Krok 3: Podpisz XML w formacie XAdES-BES
      */
-    private function loadPrivateKey(string $keyPath, string $password)
+    private function signXades(string $xml): string
     {
-        $keyContent = file_get_contents($keyPath);
-        $privateKey = openssl_pkey_get_private($keyContent, $password);
-        
-        if ($privateKey === false) {
-            throw new Exception("Nie można wczytać klucza prywatnego - sprawdź hasło");
-        }
-
-        return $privateKey;
-    }
-
-    /**
-     * KROK 3: Utwórz niepodpisany XML AuthTokenRequest
-     */
-    private function createAuthTokenRequestXml(string $challenge, string $nip): string
-    {
-        return <<<XML
-<?xml version="1.0" encoding="UTF-8"?>
-<AuthTokenRequest xmlns="http://ksef.mf.gov.pl/auth/token/2.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-    <Challenge>$challenge</Challenge>
-    <ContextIdentifier>
-        <Nip>$nip</Nip>
-    </ContextIdentifier>
-    <SubjectIdentifierType>certificateSubject</SubjectIdentifierType>
-</AuthTokenRequest>
-XML;
-    }
-
-    /**
-     * KROK 4: Podpisz XML używając XAdES-BES
-     * 
-     * To jest najbardziej skomplikowana część!
-     */
-    private function signXmlWithXAdES(
-        string $unsignedXml,
-        array $cert,
-        $privateKey
-    ): string {
-        // Wczytaj XML do DOMDocument
         $doc = new DOMDocument();
-        $doc->preserveWhiteSpace = false;
-        $doc->formatOutput = false;
-        $doc->loadXML($unsignedXml);
+        $doc->loadXML($xml);
 
         // Generuj unikalne ID
-        $signatureId = 'ID-' . $this->generateGUID();
-        $signedInfoId = 'ID-' . $this->generateGUID();
-        $referenceId = 'ID-' . $this->generateGUID();
-        $signedPropertiesReferenceId = 'ID-' . $this->generateGUID();
-        $signatureValueId = 'ID-' . $this->generateGUID();
-        $qualifyingPropertiesId = 'ID-' . $this->generateGUID();
-        $signedPropertiesId = 'ID-' . $this->generateGUID();
+        $signatureId = 'Signature-' . $this->generateUuid();
+        $signedPropsId = 'SignedProperties-' . $this->generateUuid();
+        $keyInfoId = 'KeyInfo-' . $this->generateUuid();
+        $signedPropsRefId = 'Reference-' . $this->generateUuid();
 
-        // 1. Canonicalize document (dla DigestValue)
-        $canonicalXml = $doc->C14N(false, false);
-        $digestValue = base64_encode(hash('sha256', $canonicalXml, true));
+        // Pobierz dane certyfikatu
+        $certData = openssl_x509_parse($this->certificate);
+        $certDer = null;
+        openssl_x509_export($this->certificate, $certPem);
+        $certDer = $this->pemToDer($certPem);
+        $certDigest = base64_encode(hash('sha256', $certDer, true));
+        $certB64 = base64_encode($certDer);
 
-        // 2. Utwórz SignedProperties
+        // Serial number i issuer
+        $serialNumber = $certData['serialNumber'];
+        $issuerDn = $this->formatIssuerDn($certData['issuer']);
+
+        // Timestamp dla XAdES
         $signingTime = gmdate('Y-m-d\TH:i:s\Z');
-        $signedPropertiesXml = $this->createSignedProperties(
-            $signedPropertiesId,
-            $signatureId,
+
+        // Kanonizacja dokumentu i obliczenie digest
+        $canonicalXml = $this->canonicalize($doc->documentElement);
+        $docDigest = base64_encode(hash('sha256', $canonicalXml, true));
+
+        // Zbuduj SignedProperties
+        $signedPropsXml = $this->buildSignedProperties(
+            $signedPropsId,
             $signingTime,
-            $cert
+            $certDigest,
+            $serialNumber,
+            $issuerDn
         );
 
-        // 3. Canonicalize SignedProperties
-        $signedPropertiesDoc = new DOMDocument();
-        $signedPropertiesDoc->loadXML($signedPropertiesXml);
-        // Użyj exclusive canonicalization
-        $canonicalSignedProperties = $signedPropertiesDoc->documentElement->C14N(true, false);
-        $signedPropertiesDigest = base64_encode(hash('sha256', $canonicalSignedProperties, true));
+        // Oblicz digest SignedProperties
+        $signedPropsDoc = new DOMDocument();
+        $signedPropsDoc->loadXML($signedPropsXml);
+        $canonicalSignedProps = $this->canonicalize($signedPropsDoc->documentElement);
+        $signedPropsDigest = base64_encode(hash('sha256', $canonicalSignedProps, true));
 
-        // 4. Utwórz SignedInfo
-        $signedInfoXml = $this->createSignedInfo(
-            $signedInfoId,
-            $digestValue,
-            $referenceId,
-            $signedPropertiesDigest,
-            $signedPropertiesReferenceId,
-            $signedPropertiesId
-        );
+        // Zbuduj SignedInfo
+        $signedInfoXml = $this->buildSignedInfo($docDigest, $signedPropsDigest, $signedPropsId);
 
-        // 5. Canonicalize SignedInfo i podpisz
+        // Oblicz podpis
         $signedInfoDoc = new DOMDocument();
         $signedInfoDoc->loadXML($signedInfoXml);
-        $canonicalSignedInfo = $signedInfoDoc->C14N(false, false);
+        $canonicalSignedInfo = $this->canonicalize($signedInfoDoc->documentElement);
 
-        // Podpisz za pomocą RSA-SHA256
-        openssl_sign($canonicalSignedInfo, $signature, $privateKey, OPENSSL_ALGO_SHA256);
+        $signature = '';
+        if (!openssl_sign($canonicalSignedInfo, $signature, $this->privateKey, OPENSSL_ALGO_SHA256)) {
+            throw new Exception("Błąd tworzenia podpisu: " . openssl_error_string());
+        }
         $signatureValue = base64_encode($signature);
 
-        // 6. Zbuduj pełny <Signature>
-        $signatureXml = $this->createFullSignature(
+        // Zbuduj kompletny podpis
+        $signatureXml = $this->buildCompleteSignature(
             $signatureId,
             $signedInfoXml,
             $signatureValue,
-            $signatureValueId,
-            $cert['base64'],
-            $signedPropertiesXml,
-            $qualifyingPropertiesId,
-            $signatureId
+            $keyInfoId,
+            $certB64,
+            $signedPropsXml
         );
 
-        // 7. Wstaw <Signature> do dokumentu
-        $signatureDoc = new DOMDocument();
-        $signatureDoc->loadXML($signatureXml);
-        $signatureNode = $doc->importNode($signatureDoc->documentElement, true);
-        $doc->documentElement->appendChild($signatureNode);
+        // Wstaw podpis do dokumentu
+        $signedDoc = $this->insertSignature($doc, $signatureXml);
 
-        return $doc->saveXML();
+        return $signedDoc->saveXML();
     }
 
     /**
-     * Tworzy element SignedProperties
+     * Buduje element SignedProperties (XAdES)
      */
-    private function createSignedProperties(
+    private function buildSignedProperties(
         string $id,
-        string $target,
         string $signingTime,
-        array $cert
+        string $certDigest,
+        string $serialNumber,
+        string $issuerDn
     ): string {
-        $issuerName = $this->formatIssuerName($cert['info']['issuer']);
-        $serialNumber = $cert['info']['serialNumber'];
-
         return <<<XML
-<xades:SignedProperties xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" Id="$id">
-    <xades:SignedSignatureProperties>
-        <xades:SigningTime>$signingTime</xades:SigningTime>
-        <xades:SigningCertificate>
-            <xades:Cert>
-                <xades:CertDigest>
-                    <ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>
-                    <ds:DigestValue>{$cert['digest']}</ds:DigestValue>
-                </xades:CertDigest>
-                <xades:IssuerSerial>
-                    <ds:X509IssuerName>$issuerName</ds:X509IssuerName>
-                    <ds:X509SerialNumber>$serialNumber</ds:X509SerialNumber>
-                </xades:IssuerSerial>
-            </xades:Cert>
-        </xades:SigningCertificate>
-    </xades:SignedSignatureProperties>
+<xades:SignedProperties xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" Id="{$id}">
+  <xades:SignedSignatureProperties>
+    <xades:SigningTime>{$signingTime}</xades:SigningTime>
+    <xades:SigningCertificate>
+      <xades:Cert>
+        <xades:CertDigest>
+          <ds:DigestMethod xmlns:ds="http://www.w3.org/2000/09/xmldsig#" Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>
+          <ds:DigestValue xmlns:ds="http://www.w3.org/2000/09/xmldsig#">{$certDigest}</ds:DigestValue>
+        </xades:CertDigest>
+        <xades:IssuerSerial>
+          <ds:X509IssuerName xmlns:ds="http://www.w3.org/2000/09/xmldsig#">{$issuerDn}</ds:X509IssuerName>
+          <ds:X509SerialNumber xmlns:ds="http://www.w3.org/2000/09/xmldsig#">{$serialNumber}</ds:X509SerialNumber>
+        </xades:IssuerSerial>
+      </xades:Cert>
+    </xades:SigningCertificate>
+  </xades:SignedSignatureProperties>
 </xades:SignedProperties>
 XML;
     }
 
     /**
-     * Tworzy element SignedInfo
+     * Buduje element SignedInfo
      */
-    private function createSignedInfo(
-        string $id,
-        string $digestValue,
-        string $referenceId,
-        string $signedPropertiesDigest,
-        string $signedPropertiesReferenceId,
-        string $signedPropertiesId
-    ): string {
+    private function buildSignedInfo(string $docDigest, string $signedPropsDigest, string $signedPropsId): string
+    {
         return <<<XML
-<ds:SignedInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#" Id="$id">
-    <ds:CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>
-    <ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>
-    <ds:Reference Id="$referenceId" URI="">
-        <ds:Transforms>
-            <ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>
-        </ds:Transforms>
-        <ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>
-        <ds:DigestValue>$digestValue</ds:DigestValue>
-    </ds:Reference>
-    <ds:Reference Id="$signedPropertiesReferenceId" Type="http://uri.etsi.org/01903#SignedProperties" URI="#$signedPropertiesId">
-        <ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>
-        <ds:DigestValue>$signedPropertiesDigest</ds:DigestValue>
-    </ds:Reference>
+<ds:SignedInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+  <ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+  <ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>
+  <ds:Reference URI="">
+    <ds:Transforms>
+      <ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>
+      <ds:Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+    </ds:Transforms>
+    <ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>
+    <ds:DigestValue>{$docDigest}</ds:DigestValue>
+  </ds:Reference>
+  <ds:Reference URI="#{$signedPropsId}" Type="http://uri.etsi.org/01903#SignedProperties">
+    <ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>
+    <ds:DigestValue>{$signedPropsDigest}</ds:DigestValue>
+  </ds:Reference>
 </ds:SignedInfo>
 XML;
     }
 
     /**
-     * Tworzy pełny element Signature
+     * Buduje kompletny element Signature
      */
-    private function createFullSignature(
+    private function buildCompleteSignature(
         string $signatureId,
         string $signedInfoXml,
         string $signatureValue,
-        string $signatureValueId,
-        string $certBase64,
-        string $signedPropertiesXml,
-        string $qualifyingPropertiesId,
-        string $target
+        string $keyInfoId,
+        string $certB64,
+        string $signedPropsXml
     ): string {
-        // Wyciągnij tylko zawartość SignedInfo (bez XML declaration)
-        $signedInfoContent = preg_replace('/<\?xml[^>]+\?>/', '', $signedInfoXml);
-        $signedPropertiesContent = preg_replace('/<\?xml[^>]+\?>/', '', $signedPropertiesXml);
+        // Wyciągnij zawartość SignedInfo bez deklaracji XML
+        $signedInfoContent = preg_replace('/<\?xml[^>]*\?>/', '', $signedInfoXml);
+        $signedPropsContent = preg_replace('/<\?xml[^>]*\?>/', '', $signedPropsXml);
 
         return <<<XML
-<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" Id="$signatureId">
-    $signedInfoContent
-    <ds:SignatureValue Id="$signatureValueId">$signatureValue</ds:SignatureValue>
-    <ds:KeyInfo>
-        <ds:X509Data>
-            <ds:X509Certificate>$certBase64</ds:X509Certificate>
-        </ds:X509Data>
-    </ds:KeyInfo>
-    <ds:Object>
-        <xades:QualifyingProperties xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" Id="$qualifyingPropertiesId" Target="#$target">
-            $signedPropertiesContent
-        </xades:QualifyingProperties>
-    </ds:Object>
+<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" Id="{$signatureId}">
+  {$signedInfoContent}
+  <ds:SignatureValue>{$signatureValue}</ds:SignatureValue>
+  <ds:KeyInfo Id="{$keyInfoId}">
+    <ds:X509Data>
+      <ds:X509Certificate>{$certB64}</ds:X509Certificate>
+    </ds:X509Data>
+  </ds:KeyInfo>
+  <ds:Object>
+    <xades:QualifyingProperties xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" Target="#{$signatureId}">
+      {$signedPropsContent}
+    </xades:QualifyingProperties>
+  </ds:Object>
 </ds:Signature>
 XML;
     }
 
     /**
-     * Pomocnicze funkcje
+     * Wstawia podpis do dokumentu
      */
-    private function extractCertificateBase64(string $certPem): string
+    private function insertSignature(DOMDocument $doc, string $signatureXml): DOMDocument
     {
-        $lines = explode("\n", $certPem);
-        $base64 = '';
-        foreach ($lines as $line) {
-            if (strpos($line, '-----') === false) {
-                $base64 .= trim($line);
-            }
-        }
-        return $base64;
+        $sigDoc = new DOMDocument();
+        $sigDoc->loadXML($signatureXml);
+        
+        $importedSig = $doc->importNode($sigDoc->documentElement, true);
+        $doc->documentElement->appendChild($importedSig);
+
+        return $doc;
     }
 
-    private function formatIssuerName(array $issuer): string
+    /**
+     * Krok 4: Wyślij podpisany XML do KSeF
+     */
+    private function submitSignedXml(string $signedXml): array
+    {
+        $url = "{$this->baseUrl}/v2/auth/xades-signature";
+
+        $response = $this->httpRequest('POST', $url, $signedXml, [
+            'Content-Type: application/xml'
+        ]);
+
+        if (!isset($response['referenceNumber']) || !isset($response['authenticationToken'])) {
+            throw new Exception("Nieprawidłowa odpowiedź auth: " . json_encode($response));
+        }
+
+        return $response;
+    }
+
+    /**
+     * Krok 5: Czekaj na status uwierzytelnienia
+     */
+    private function waitForAuthStatus(string $referenceNumber, string $authToken, int $maxAttempts = 30): void
+    {
+        $url = "{$this->baseUrl}/v2/auth/{$referenceNumber}";
+
+        for ($i = 0; $i < $maxAttempts; $i++) {
+            $response = $this->httpRequest('GET', $url, null, [
+                "Authorization: Bearer {$authToken}"
+            ]);
+
+            $statusCode = $response['status']['code'] ?? 0;
+
+            if ($statusCode === 200) {
+                return; // Sukces
+            }
+
+            if ($statusCode >= 400) {
+                $desc = $response['status']['description'] ?? 'Nieznany błąd';
+                throw new Exception("Błąd uwierzytelnienia: {$statusCode} - {$desc}");
+            }
+
+            // Status 100 = w toku, czekaj
+            sleep(2);
+        }
+
+        throw new Exception("Przekroczono limit czasu oczekiwania na uwierzytelnienie");
+    }
+
+    /**
+     * Krok 6: Pobierz accessToken
+     */
+    private function redeemToken(string $authToken): array
+    {
+        $url = "{$this->baseUrl}/v2/auth/token/redeem";
+
+        $response = $this->httpRequest('POST', $url, '{}', [
+            'Content-Type: application/json',
+            "Authorization: Bearer {$authToken}"
+        ]);
+
+        if (!isset($response['accessToken']) || !isset($response['refreshToken'])) {
+            throw new Exception("Nieprawidłowa odpowiedź token/redeem: " . json_encode($response));
+        }
+
+        return [
+            'accessToken' => $response['accessToken']['token'],
+            'refreshToken' => $response['refreshToken']['token'],
+            'accessTokenValidUntil' => $response['accessToken']['validUntil'] ?? null,
+            'refreshTokenValidUntil' => $response['refreshToken']['validUntil'] ?? null,
+        ];
+    }
+
+    /**
+     * Kanonizacja XML (Exclusive C14N)
+     */
+    private function canonicalize(\DOMNode $node): string
+    {
+        return $node->C14N(true, true);
+    }
+
+    /**
+     * Konwertuj PEM na DER
+     */
+    private function pemToDer(string $pem): string
+    {
+        $lines = explode("\n", $pem);
+        $der = '';
+        $inCert = false;
+        
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (strpos($line, '-----BEGIN') !== false) {
+                $inCert = true;
+                continue;
+            }
+            if (strpos($line, '-----END') !== false) {
+                break;
+            }
+            if ($inCert) {
+                $der .= $line;
+            }
+        }
+        
+        return base64_decode($der);
+    }
+
+    /**
+     * Formatuj DN issuera dla XAdES
+     */
+    private function formatIssuerDn(array $issuer): string
     {
         $parts = [];
         
-        $order = ['L', 'C', 'O', 'serialNumber', 'GN', 'SN', 'CN'];
+        // Kolejność RFC 4514 (odwrotna)
+        $order = ['CN', 'OU', 'O', 'L', 'ST', 'C'];
         
         foreach ($order as $key) {
             if (isset($issuer[$key])) {
-                $parts[] = "$key=" . $issuer[$key];
+                $value = $issuer[$key];
+                if (is_array($value)) {
+                    $value = implode('+', $value);
+                }
+                // Escape specjalnych znaków
+                $value = str_replace(['\\', ',', '+', '"', '<', '>', ';'], 
+                                    ['\\\\', '\\,', '\\+', '\\"', '\\<', '\\>', '\\;'], $value);
+                $parts[] = "{$key}={$value}";
             }
         }
         
         return implode(', ', $parts);
     }
 
-    private function generateGUID(): string
+    /**
+     * Generuj UUID v4
+     */
+    private function generateUuid(): string
     {
-        return sprintf(
-            '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-            mt_rand(0, 0xffff), mt_rand(0, 0xffff),
-            mt_rand(0, 0xffff),
-            mt_rand(0, 0x0fff) | 0x4000,
-            mt_rand(0, 0x3fff) | 0x8000,
-            mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
-        );
+        $data = random_bytes(16);
+        $data[6] = chr(ord($data[6]) & 0x0f | 0x40);
+        $data[8] = chr(ord($data[8]) & 0x3f | 0x80);
+        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
     }
 
     /**
-     * KROK 5: Wyślij podpisany XML
+     * Wykonaj żądanie HTTP
      */
-    private function sendXAdESSignature(string $signedXml): array
+    private function httpRequest(string $method, string $url, ?string $body, array $headers): array
     {
-        $url = $this->baseUrl . '/auth/xades-signature';
+        $ch = curl_init();
 
-        $ch = curl_init($url);
+        $curlHeaders = $headers;
+        
         curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST => true,
-            CURLOPT_HTTPHEADER => ['Content-Type: application/xml'],
-            CURLOPT_POSTFIELDS => $signedXml
+            CURLOPT_HTTPHEADER => $curlHeaders,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_TIMEOUT => 60,
         ]);
+
+        if ($method === 'POST') {
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+        }
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
         curl_close($ch);
 
-        if ($httpCode !== 202) {
-            throw new Exception("Błąd wysyłania XAdES: HTTP $httpCode - $response");
+        if ($response === false) {
+            throw new Exception("Błąd cURL: {$error}");
         }
 
         $data = json_decode($response, true);
-        
-        if (!isset($data['referenceNumber'])) {
-            throw new Exception("Brak referenceNumber w odpowiedzi");
+
+        if ($data === null && !empty($response)) {
+            // Może to XML lub inny format
+            throw new Exception("Nieprawidłowa odpowiedź JSON (HTTP {$httpCode}): " . substr($response, 0, 500));
         }
 
-        return $data;
-    }
-
-    /**
-     * KROK 6: Czekaj na sessionToken
-     */
-    private function waitForSessionToken(string $referenceNumber): string
-    {
-        $url = $this->baseUrl . '/auth/' . urlencode($referenceNumber);
-        $maxAttempts = 30;
-        $attempt = 0;
-
-        while ($attempt < $maxAttempts) {
-            sleep(2);
-            $attempt++;
-
-            $ch = curl_init($url);
-            curl_setopt_array($ch, [
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_HTTPHEADER => ['Accept: application/json']
-            ]);
-
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-
-            if ($httpCode === 200) {
-                $data = json_decode($response, true);
-                
-                if (isset($data['sessionToken']['token'])) {
-                    return $data['sessionToken']['token'];
-                }
-            }
+        if ($httpCode >= 400) {
+            $errorMsg = $data['exception']['exceptionDescription'] ?? "HTTP Error {$httpCode}";
+            $errorCode = $data['exception']['exceptionCode'] ?? $httpCode;
+            throw new Exception("KSeF Error [{$errorCode}]: {$errorMsg}");
         }
 
-        throw new Exception("Timeout - nie udało się uzyskać sessionToken");
-    }
-
-    private function getBaseUrl(string $environment): string
-    {
-        return match (strtolower($environment)) {
-            'demo' => 'https://api-demo.ksef.mf.gov.pl/api/v2',
-            'test' => 'https://api-test.ksef.mf.gov.pl/api/v2',
-            'prod', 'production' => 'https://api.ksef.mf.gov.pl/api/v2',
-            default => throw new Exception("Nieznane środowisko: {$environment}")
-        };
-    }
-
-    private function classifyError(\Throwable $e): Exception
-    {
-        $message = $e->getMessage();
-        
-        if (stripos($message, 'password') !== false || 
-            stripos($message, 'private key') !== false) {
-            return new Exception(
-                "Nieprawidłowe hasło do klucza prywatnego",
-                0,
-                $e
-            );
-        }
-
-        if (stripos($message, 'certificate') !== false) {
-            return new Exception(
-                "Błąd certyfikatu - sprawdź czy plik jest poprawny",
-                0,
-                $e
-            );
-        }
-
-        return new Exception(
-            "Błąd uwierzytelniania: " . $message,
-            $e->getCode(),
-            $e
-        );
+        return $data ?? [];
     }
 }

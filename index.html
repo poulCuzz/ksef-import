@@ -12,10 +12,10 @@
     <div class="box">
         <h2>KSeF 2.0 - Import Faktur</h2>
 
-        <!-- PRZEŁĄCZNIK -->
+        <!-- PRZEŁĄCZNIK METODY UWIERZYTELNIANIA -->
         <div class="auth-method-switcher">
             <button type="button" class="method-btn active" data-method="token">🔑 Token KSeF</button>
-            <button type="button" class="method-btn" data-method="certificate">🔐 Certyfikat .p12</button>
+            <button type="button" class="method-btn" data-method="certificate">🔐 Certyfikat</button>
         </div>
 
         <form id="exportForm" enctype="multipart/form-data">
@@ -25,8 +25,9 @@
             <div class="form-group">
                 <label>Środowisko:</label>
                 <select name="env" id="env">
-                    <option value="demo">DEMO (api-demo.ksef.mf.gov.pl)</option>
-                    <option value="test">TEST (api-test.ksef.mf.gov.pl)</option>
+                    <option value="demo">DEMO (ksef-demo.mf.gov.pl)</option>
+                    <option value="test">TEST (ksef-test.mf.gov.pl)</option>
+                    <option value="prod">PROD (ksef-prod.mf.gov.pl)</option>
                 </select>
             </div>
 
@@ -38,19 +39,34 @@
                 </div>
             </div>
 
-            <!-- FORMULARZ CERTYFIKATU .p12 (ukryty domyślnie) -->
+            <!-- FORMULARZ CERTYFIKATU (ukryty domyślnie) -->
             <div id="certificate-form" class="auth-form">
-                <div class="form-group cert-info">
-                    <div class="cert-icon">🔐</div>
-                    <div class="cert-details">
-                        <strong>Certyfikat: AkceptujFaktury_pl.p12</strong>
-                        <span class="cert-hint">Plik certyfikatu znajduje się w folderze /certs/</span>
+                <div class="cert-info-box">
+                    <div class="cert-icon">📜</div>
+                    <div class="cert-text">
+                        <strong>Uwierzytelnianie certyfikatem</strong>
+                        <span>Wybierz plik certyfikatu (.crt) i klucza prywatnego (.key)</span>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Hasło do certyfikatu .p12:</label>
-                    <input type="password" name="p12_password" id="p12_password" placeholder="Wpisz hasło do pliku .p12">
+                    <label>Certyfikat (.crt):</label>
+                    <input type="file" name="certificate" id="certificate" accept=".crt,.pem,.cer">
+                    <label for="certificate" class="file-upload-label">📄 Wybierz plik certyfikatu</label>
+                    <span class="file-name" id="cert-file-name"></span>
+                </div>
+
+                <div class="form-group">
+                    <label>Klucz prywatny (.key):</label>
+                    <input type="file" name="private_key" id="private_key" accept=".key,.pem">
+                    <label for="private_key" class="file-upload-label">🔑 Wybierz plik klucza</label>
+                    <span class="file-name" id="key-file-name"></span>
+                </div>
+
+                <div class="form-group">
+                    <label>Hasło do klucza prywatnego:</label>
+                    <input type="password" name="key_password" id="key_password" placeholder="Wpisz hasło (jeśli wymagane)">
+                    <small class="hint">Pozostaw puste jeśli klucz nie jest chroniony hasłem</small>
                 </div>
             </div>
 
@@ -76,6 +92,10 @@
                     <label>Data do:</label>
                     <input type="date" name="date_to" id="date_to" required>
                 </div>
+            </div>
+
+            <div class="date-hint">
+                <small>⚠️ Maksymalny zakres dat: 3 miesiące</small>
             </div>
 
             <button type="submit" id="submitBtn">Importuj faktury</button>
@@ -107,6 +127,20 @@
 </div>
 
 <script src="app.js"></script>
+
+<!-- Skrypt do obsługi wyboru plików -->
+<script>
+// Wyświetlanie nazwy wybranego pliku
+document.getElementById('certificate')?.addEventListener('change', function() {
+    const fileName = this.files[0]?.name || '';
+    document.getElementById('cert-file-name').textContent = fileName;
+});
+
+document.getElementById('private_key')?.addEventListener('change', function() {
+    const fileName = this.files[0]?.name || '';
+    document.getElementById('key-file-name').textContent = fileName;
+});
+</script>
 
 </body>
 </html>
