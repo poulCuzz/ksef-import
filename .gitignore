@@ -33,5 +33,4 @@ composer.lock
 /logs/*.txt
 /src/Export/last_export_encryption.json
 /temp/session_*.json
-converts/
 certs/
