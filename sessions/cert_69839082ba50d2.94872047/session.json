@@ -1,0 +1,11 @@
+{
+    "sessionId": "cert_69839082ba50d2.94872047",
+    "referenceNumber": "20260204-EH-3F99E33000-892EA5E2BB-21",
+    "encryptionKey": "Tzo0NzoiTjFlYmllc2tpXEtTRUZDbGllbnRcVmFsdWVPYmplY3RzXEVuY3J5cHRpb25LZXkiOjI6e3M6Mzoia2V5IjtzOjMyOiLcOpX6\/EXhdPFQCE4X848CTItgZDutWFOvs4s1C6nMnSI7czoyOiJpdiI7czoxNjoiz+UiwaNFrzuzZnbRCu9gTyI7fQ==",
+    "env": "test",
+    "nip": "1234567890",
+    "p12Path": "C:\\xampp\\htdocs\\ksef-invoices-main\/certs\/AkceptujFaktury_pl.p12",
+    "p12Password": "test123",
+    "auth_method": "certificate",
+    "created_at": "2026-02-04 19:31:30"
+}

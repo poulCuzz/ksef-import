@@ -28,7 +28,7 @@ class StartImportWithCertificateAction
             $subjectType = $_POST['subject_type'] ?? 'Subject1';
 
             // 3. Ścieżka do certyfikatu .p12 (stała lokalizacja)
-            $p12Path = dirname(__DIR__, 3) . '/certs/AkceptujFaktury_pl.p12';
+            $p12Path = dirname(__DIR__, 3) . '/certs/AkceptujFaktury_pl__original.p12';
 
             if (!file_exists($p12Path)) {
                 throw new Exception("Nie znaleziono pliku certyfikatu .p12: {$p12Path}");
@@ -52,8 +52,8 @@ class StartImportWithCertificateAction
                     'subjectType' => $subjectType,
                     'dateRange' => [
                         'dateType' => 'Invoicing',
-                        'from' => new DateTimeImmutable($dateFrom),
-                        'to' => new DateTimeImmutable($dateTo)
+                        'from' => new DateTimeImmutable($dateFrom . 'T00:00:00Z'),
+                        'to' => new DateTimeImmutable($dateTo . 'T23:59:59Z')
                     ],
                 ]
             ])->object();
@@ -73,6 +73,11 @@ class StartImportWithCertificateAction
                 'sessionId' => $sessionId,
                 'referenceNumber' => $referenceNumber,
                 'encryptionKey' => base64_encode(serialize($encryptionKey)),
+                'baseUrl' => match($env) {
+                    'test' => 'https://api-test.ksef.mf.gov.pl/v2',
+                    'demo' => 'https://api-demo.ksef.mf.gov.pl/v2',
+                    default => 'https://api.ksef.mf.gov.pl/v2'
+                },
                 'env' => $env,
                 'nip' => $nip,
                 'p12Path' => $p12Path,
@@ -101,7 +106,9 @@ class StartImportWithCertificateAction
             echo json_encode([
                 'success' => false,
                 'error' => $e->getMessage(),
-                'error_type' => $errorType
+                'error_type' => $errorType,
+                'trace' => $e->getTraceAsString(),  // DODAJ TO
+                'full_error' => (string)$e          // I TO
             ]);
         }
     }

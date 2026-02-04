@@ -1,0 +1,12 @@
+{
+    "sessionId": "cert_69839105e64194.41402313",
+    "referenceNumber": "20260204-EH-3FB9EA4000-1D83CC40B3-5E",
+    "encryptionKey": "Tzo0NzoiTjFlYmllc2tpXEtTRUZDbGllbnRcVmFsdWVPYmplY3RzXEVuY3J5cHRpb25LZXkiOjI6e3M6Mzoia2V5IjtzOjMyOiJOLln+g8gBVBP6b4SsbOC5xdxQUlHOWBDNLDtxWLRfgSI7czoyOiJpdiI7czoxNjoiCKtz5A4XRGU0n9lFvz8oECI7fQ==",
+    "baseUrl": "https:\/\/api-test.ksef.mf.gov.pl\/v2",
+    "env": "test",
+    "nip": "1234567890",
+    "p12Path": "C:\\xampp\\htdocs\\ksef-invoices-main\/certs\/AkceptujFaktury_pl.p12",
+    "p12Password": "test123",
+    "auth_method": "certificate",
+    "created_at": "2026-02-04 19:33:41"
+}

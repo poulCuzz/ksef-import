@@ -45,11 +45,19 @@ class Helpers
     }
 
     public static function loadSession(string $sessionId): ?array {
-        $file = dirname(__DIR__, 3) . "/temp/session_$sessionId.json";
-        if (!file_exists($file)) {
-            return null;
+        // Stara lokalizacja (token)
+        $file1 = dirname(__DIR__, 3) . "/temp/session_$sessionId.json";
+        if (file_exists($file1)) {
+            return json_decode(file_get_contents($file1), true);
         }
-        return json_decode(file_get_contents($file), true);
+        
+        // Nowa lokalizacja (certyfikat)
+        $file2 = dirname(__DIR__, 3) . "/sessions/$sessionId/session.json";
+        if (file_exists($file2)) {
+            return json_decode(file_get_contents($file2), true);
+        }
+        
+        return null;
     }
 
     public static function cleanOldSessions(): void {

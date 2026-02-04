@@ -34,9 +34,6 @@ try {
             $authMethod = $_POST['auth_method'] ?? 'token';
             
             if ($authMethod === 'certificate') {
-                // ⬇️ NOWA KLASA
-                require_once __DIR__ . '/src/Auth/CertificateAuthenticator.php';
-                require_once __DIR__ . '/src/Api/Actions/StartImportWithCertificateAction.php';
                 
                 (new KSeF\Api\Actions\StartImportWithCertificateAction())->execute();
             } else {
