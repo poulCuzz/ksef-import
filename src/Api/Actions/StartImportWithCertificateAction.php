@@ -28,7 +28,7 @@ class StartImportWithCertificateAction
             $subjectType = $_POST['subject_type'] ?? 'Subject1';
 
             // 3. Ścieżka do certyfikatu .p12 (stała lokalizacja)
-            $p12Path = dirname(__DIR__, 3) . '/certs/AkceptujFaktury_pl__original.p12';
+            $p12Path = dirname(__DIR__, 3) . '/certs/AkceptujFaktury_pl.p12';
 
             if (!file_exists($p12Path)) {
                 throw new Exception("Nie znaleziono pliku certyfikatu .p12: {$p12Path}");
