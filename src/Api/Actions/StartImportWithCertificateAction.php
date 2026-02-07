@@ -231,7 +231,7 @@ class StartImportWithCertificateAction
         return match (strtolower($env)) {
             'demo' => 'https://api-demo.ksef.mf.gov.pl/v2',
             'test' => 'https://api-test.ksef.mf.gov.pl/v2',
-            'prod', 'production' => 'https://api.ksef.mf.gov.pl',
+            'prod', 'production' => 'https://api.ksef.mf.gov.pl/v2',
             default => 'https://ksef-demo.mf.gov.pl'
         };
     }

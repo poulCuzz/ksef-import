@@ -32,7 +32,86 @@ class CertificateAuthenticator
         $this->nip = $nip;
         $this->baseUrl = rtrim($baseUrl, '/');
     }
-    
+        
+    /**
+     * Czeka aż uwierzytelnianie XAdES w KSeF zakończy się statusem 200
+     * (asynchroniczne przetwarzanie po xades-signature)
+     */
+    private function waitForAuthSuccess(
+        string $referenceNumber,
+        string $authenticationToken,
+        int $maxAttempts = 10,
+        int $delaySeconds = 1
+    ): void {
+        $statusUrl = $this->baseUrl . '/auth/' . rawurlencode($referenceNumber);
+
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+
+            error_log('[KSeF DEBUG] ENROLL STATUS URL = ' . $statusUrl);
+
+            $ch = curl_init($statusUrl);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => [
+                    'Authorization: Bearer ' . $authenticationToken,
+                ],
+                CURLOPT_SSL_VERIFYPEER => true,
+            ]);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+            if (curl_errno($ch)) {
+                $err = curl_error($ch);
+                curl_close($ch);
+                throw new \Exception("CURL error (auth status): $err");
+            }
+
+            curl_close($ch);
+
+            if ($httpCode !== 200) {
+                throw new \Exception(
+                    "HTTP $httpCode z KSeF (auth status) – próba $attempt: $response"
+                );
+            }
+
+            $data = json_decode($response, true);
+            if (!is_array($data)) {
+                throw new \Exception(
+                    "Niepoprawny JSON z auth status – próba $attempt: $response"
+                );
+            }
+
+            $statusCode = $data['status']['code'] ?? null;
+            $statusDesc = $data['status']['description'] ?? '';
+            $details    = $data['status']['details'] ?? [];
+
+            // ✅ SUKCES
+            if ($statusCode === 200) {
+                return;
+            }
+
+            // ❌ BŁĘDY KOŃCOWE
+            if (in_array($statusCode, [400, 450, 460, 470, 500, 550], true)) {
+                $detStr = is_array($details) ? implode(' | ', $details) : (string)$details;
+
+                throw new \Exception(
+                    "Uwierzytelnianie nieudane (code=$statusCode, desc=$statusDesc, details=$detStr)"
+                );
+            }
+
+            // ⏳ JESZCZE PRZETWARZANE (np. 100)
+            if ($attempt < $maxAttempts) {
+                sleep($delaySeconds);
+            }
+        }
+
+        throw new \Exception(
+            'Przekroczono limit prób sprawdzenia statusu uwierzytelniania – brak code=200'
+        );
+    }
+        
+
     /**
      * Główna metoda - zwraca authenticationToken
      */
@@ -46,7 +125,15 @@ class CertificateAuthenticator
         $xml = $this->buildAuthXML($challenge);
         $signedXml = $this->signXML($xml);
         
-        return $this->sendSignedXML($signedXml);
+        $result = $this->sendSignedXML($signedXml);
+
+        $this->waitForAuthSuccess(
+            $result['referenceNumber'],
+            $result['authenticationToken']
+        );
+
+        return $result;
+
     }
     
     // ========================================
@@ -152,7 +239,7 @@ class CertificateAuthenticator
     
     private function fetchChallenge(): string
     {
-        $url = $this->baseUrl . '/api/v2/auth/challenge';
+        $url = $this->baseUrl . '/auth/challenge';
         
         $payload = json_encode([
             'contextIdentifier' => [
@@ -160,6 +247,8 @@ class CertificateAuthenticator
             ]
         ]);
         
+        error_log('[KSeF DEBUG] ENROLL STATUS URL = ' . $url);
+
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
@@ -457,8 +546,10 @@ class CertificateAuthenticator
     
     private function sendSignedXML(string $signedXml): array
     {
-        $url = $this->baseUrl . '/api/v2/auth/xades-signature?verifyCertificateChain=false';
+        $url = $this->baseUrl . '/auth/xades-signature?verifyCertificateChain=false';
         
+        error_log('[KSeF DEBUG] ENROLL STATUS URL = ' . $url);
+
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
