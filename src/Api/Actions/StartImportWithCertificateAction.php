@@ -88,13 +88,18 @@ class StartImportWithCertificateAction
             // ============================================================
             $dateFromFormatted = $dateFrom . 'T00:00:00.000+00:00';
             $dateToFormatted = $dateTo . 'T23:59:59.999+00:00';
-
-            $exportResult = $exporter->sendExportRequest(
-                $accessToken,
-                $subjectType,
-                $dateFromFormatted,
-                $dateToFormatted
-            );
+            try {
+                $exportResult = $exporter->sendExportRequest(
+                    $accessToken,
+                    $subjectType,
+                    $dateFromFormatted,
+                    $dateToFormatted
+                );
+                error_log("exportResult: " . json_encode($exportResult));
+            } catch (\Exception $e) {
+                error_log("EXPORT ERROR: " . $e->getMessage());
+                throw $e;
+            }
 
             if (!isset($exportResult['referenceNumber'])) {
                 throw new Exception('Brak referenceNumber w odpowiedzi');

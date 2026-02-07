@@ -5,8 +5,8 @@
 let sessionId = null;
 let checkInterval = null;
 let attemptCount = 0;
-const maxAttempts = 60; // 60 prób × 3 sekundy = 3 minuty
-const checkIntervalMs = 3000; // 3 sekundy
+const maxAttempts = 200; // 200 prób × 5 sekundy = 16,7 minut
+const checkIntervalMs = 5000; // 3 sekundy
 
 // ============================================================================
 // ELEMENTY DOM
