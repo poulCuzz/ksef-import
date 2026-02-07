@@ -1,0 +1,4 @@
+- debugowanie/ wyświetlanie błędów - np. jak nie ma jakiegoś pliku pem albo w sesji czegoś nie ma
+- prostrzy wygląd i mniejsze okna żeby sie zmieściło w ekranie
+- korzystanie z refresh token jeśli aktualny i istnieje, jeśli nie to normalna procedura autoryzacji itd
+- 
