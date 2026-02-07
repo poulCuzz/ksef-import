@@ -40,7 +40,7 @@ function initializeAuthMethodSwitcher() {
     const tokenForm = document.getElementById('token-form');
     const certificateForm = document.getElementById('certificate-form');
     
-    if (!methodButtons.length) return; // Brak przełącznika w HTML
+    if (!methodButtons.length) return;
     
     methodButtons.forEach(btn => {
         btn.addEventListener('click', function(e) {
@@ -70,11 +70,149 @@ function initializeAuthMethodSwitcher() {
 }
 
 // ============================================================================
+// OBSŁUGA UPLOADU PLIKÓW CERTYFIKATU
+// ============================================================================
+
+function initializeFileUploads() {
+    // Certyfikat .crt
+    const certInput = document.getElementById('cert_file');
+    const certBox = document.getElementById('cert_upload_box');
+    const certSelected = document.getElementById('cert_selected');
+    const certFileName = document.getElementById('cert_file_name');
+    const certRemove = document.getElementById('cert_remove');
+    
+    // Klucz .key
+    const keyInput = document.getElementById('key_file');
+    const keyBox = document.getElementById('key_upload_box');
+    const keySelected = document.getElementById('key_selected');
+    const keyFileName = document.getElementById('key_file_name');
+    const keyRemove = document.getElementById('key_remove');
+    
+    // Funkcja do obsługi wyboru pliku
+    function handleFileSelect(input, box, selected, fileNameSpan) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            fileNameSpan.textContent = file.name;
+            box.style.display = 'none';
+            selected.style.display = 'flex';
+        }
+    }
+    
+    // Funkcja do usuwania pliku
+    function handleFileRemove(input, box, selected) {
+        input.value = '';
+        box.style.display = 'flex';
+        selected.style.display = 'none';
+    }
+    
+    // Event listenery dla certyfikatu
+    if (certInput && certBox) {
+        certInput.addEventListener('change', () => handleFileSelect(certInput, certBox, certSelected, certFileName));
+        certBox.addEventListener('click', () => certInput.click());
+        certRemove.addEventListener('click', (e) => {
+            e.preventDefault();
+            handleFileRemove(certInput, certBox, certSelected);
+        });
+        
+        // Drag & drop
+        certBox.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            certBox.classList.add('dragover');
+        });
+        certBox.addEventListener('dragleave', () => certBox.classList.remove('dragover'));
+        certBox.addEventListener('drop', (e) => {
+            e.preventDefault();
+            certBox.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                certInput.files = e.dataTransfer.files;
+                handleFileSelect(certInput, certBox, certSelected, certFileName);
+            }
+        });
+    }
+    
+    // Event listenery dla klucza
+    if (keyInput && keyBox) {
+        keyInput.addEventListener('change', () => handleFileSelect(keyInput, keyBox, keySelected, keyFileName));
+        keyBox.addEventListener('click', () => keyInput.click());
+        keyRemove.addEventListener('click', (e) => {
+            e.preventDefault();
+            handleFileRemove(keyInput, keyBox, keySelected);
+        });
+        
+        // Drag & drop
+        keyBox.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            keyBox.classList.add('dragover');
+        });
+        keyBox.addEventListener('dragleave', () => keyBox.classList.remove('dragover'));
+        keyBox.addEventListener('drop', (e) => {
+            e.preventDefault();
+            keyBox.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                keyInput.files = e.dataTransfer.files;
+                handleFileSelect(keyInput, keyBox, keySelected, keyFileName);
+            }
+        });
+    }
+}
+
+// ============================================================================
+// WALIDACJA FORMULARZA
+// ============================================================================
+
+function validateForm() {
+    const authMethod = document.getElementById('auth_method').value;
+    const nip = document.getElementById('nip').value;
+    const dateFrom = document.getElementById('date_from').value;
+    const dateTo = document.getElementById('date_to').value;
+    
+    // Walidacja NIP
+    if (!nip || nip.length !== 10) {
+        return { valid: false, error: 'NIP musi składać się z 10 cyfr' };
+    }
+    
+    // Walidacja dat
+    if (!dateFrom || !dateTo) {
+        return { valid: false, error: 'Daty są wymagane' };
+    }
+    
+    if (authMethod === 'token') {
+        const token = document.getElementById('ksef_token').value.trim();
+        if (!token) {
+            return { valid: false, error: 'Token KSeF jest wymagany' };
+        }
+    } else if (authMethod === 'certificate') {
+        const certFile = document.getElementById('cert_file').files[0];
+        const keyFile = document.getElementById('key_file').files[0];
+        
+        if (!certFile) {
+            return { valid: false, error: 'Wybierz plik certyfikatu (.crt)' };
+        }
+        if (!keyFile) {
+            return { valid: false, error: 'Wybierz plik klucza prywatnego (.key)' };
+        }
+    }
+    
+    return { valid: true };
+}
+
+// ============================================================================
 // OBSŁUGA FORMULARZA
 // ============================================================================
 
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    
+    // Walidacja
+    const validation = validateForm();
+    if (!validation.valid) {
+        showError({
+            errorType: 'user_error',
+            message: validation.error,
+            title: 'Błąd walidacji'
+        });
+        return;
+    }
     
     // Reset
     attemptCount = 0;
@@ -100,9 +238,15 @@ form.addEventListener('submit', async (e) => {
     updateStatus('Łączenie z KSeF...', 'Autoryzacja i inicjacja importu');
     
     try {
-        // Krok 1: Start importu
+        const authMethod = document.getElementById('auth_method').value;
         const formData = new FormData(form);
-        formData.append('action', 'start_import'); // ZMIANA: start_import zamiast start_export
+        
+        // Ustaw odpowiednią akcję w zależności od metody
+        if (authMethod === 'certificate') {
+            formData.append('action', 'start_import_certificate');
+        } else {
+            formData.append('action', 'start_import');
+        }
         
         const response = await fetch('api.php', {
             method: 'POST',
@@ -134,7 +278,6 @@ form.addEventListener('submit', async (e) => {
         checkExportStatus(); // Pierwsze sprawdzenie od razu
         
     } catch (error) {
-        // Sprawdź czy to odpowiedź z API z klasyfikacją
         if (error.errorType) {
             showError(error);
         } else {
@@ -181,7 +324,6 @@ async function checkExportStatus() {
         }
         
     } catch (error) {
-        // Nie przerywaj przy pojedynczym błędzie - spróbuj ponownie
         console.error('Check status error:', error);
         updateStatus('Ponawiam sprawdzanie...', error.message);
     }
@@ -197,7 +339,7 @@ function updateStatus(title, message) {
 }
 
 // ============================================================================
-// SUKCES - GENERUJE LINKI DO POBRANIA (działający mechanizm)
+// SUKCES - GENERUJE LINKI DO POBRANIA
 // ============================================================================
 
 function showSuccess(filesCount) {
@@ -211,7 +353,7 @@ function showSuccess(filesCount) {
     statusTitle.textContent = 'Import zakończony!';
     statusMessage.textContent = `Znaleziono ${filesCount} plik(ów) do pobrania.`;
     
-    // Generuj przyciski pobierania - DZIAŁAJĄCY MECHANIZM z linkami <a>
+    // Generuj przyciski pobierania
     downloadList.style.display = 'block';
     downloadList.innerHTML = '';
     
@@ -326,6 +468,9 @@ document.getElementById('date_from').value = monthAgo.toISOString().split('T')[0
 
 // Inicjalizuj przełącznik metody uwierzytelniania
 initializeAuthMethodSwitcher();
+
+// Inicjalizuj upload plików
+initializeFileUploads();
 
 // ============================================================================
 // AUTOMATYCZNE WYKRYWANIE NIP Z TOKENA

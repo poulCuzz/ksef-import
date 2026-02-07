@@ -31,16 +31,15 @@ $action = $_GET['action'] ?? $_POST['action'] ?? '';
 try {
     switch ($action) {
         case 'start_import':
-            $authMethod = $_POST['auth_method'] ?? 'token';
-            
-            if ($authMethod === 'certificate') {
-                
-                (new KSeF\Api\Actions\StartImportWithCertificateAction())->execute();
-            } else {
-                // Token (stara ścieżka)
-                (new KSeF\Api\Actions\StartExportAction())->execute();
-            }
+            // Token (stara, stabilna ścieżka)
+            (new KSeF\Api\Actions\StartExportAction())->execute();
             break;
+
+        case 'start_import_certificate':
+            // Certyfikat (XAdES)
+            (new KSeF\Api\Actions\StartImportWithCertificateAction())->execute();
+            break;
+
         
         case 'check_status':
             (new CheckStatusAction())->execute();
