@@ -1,5 +1,8 @@
 <?php
 
+error_reporting(E_ALL);
+ini_set('display_errors', '0');
+
 /**
  * API.PHP - Backend dla importu faktur z KSeF
  * 
@@ -21,6 +24,7 @@ use KSeF\Api\Actions\StartExportAction;
 use KSeF\Api\Actions\StartImportWithCertificateAction;
 use KSeF\Api\Actions\CheckStatusAction;
 use KSeF\Api\Actions\DownloadAction;
+
 
 header('Content-Type: application/json; charset=utf-8');
 
