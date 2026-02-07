@@ -6,10 +6,9 @@
 /temp/*.json
 /export/*.json
 
-# Klucze prywatne (certyfikaty publiczne OK)
+# Klucze prywatne 
 *.key
 *.p12
-*.pem
 *.log
 
 # Pliki systemowe
