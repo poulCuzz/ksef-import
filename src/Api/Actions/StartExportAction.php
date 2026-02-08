@@ -28,7 +28,7 @@ class StartExportAction
         // Buduj URL
         $baseUrl = ($env === 'demo')
             ? 'https://api-demo.ksef.mf.gov.pl/v2'
-            : 'https://api-test.ksef.mf.gov.pl/v2';
+            : 'https://api-test.ksef.mf.gov.pl/v2'; // Zmień na produkcyjny URL, gdy będzie dostępny
         
         // Formatuj daty
         $dateFromFormatted = $dateFrom . 'T00:00:00.000+00:00';

@@ -11,7 +11,12 @@
     ],
     "require": {
         "php": ">=8.0",
-        "phpseclib/phpseclib": "^3.0"
+        "phpseclib/phpseclib": "^3.0",
+        "symfony/http-client": "^7.4",
+        "nyholm/psr7": "^1.8",
+        "lyquidity/xml-signer": "^1.12",
+        "n1ebieski/ksef-php-client": "^0.26.0",
+        "guzzlehttp/guzzle": "^7.10"
     },
     "autoload": {
         "psr-4": {
@@ -30,5 +35,10 @@
         "php",
         "vat",
         "poland"
-    ]
+    ],
+    "config": {
+        "allow-plugins": {
+            "php-http/discovery": true
+        }
+    }
 }

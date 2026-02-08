@@ -14,6 +14,9 @@ class CheckStatusAction
         }
         
         $session = Helpers::loadSession($sessionId);
+        if (empty($session['accessToken']) || empty($session['referenceNumber'])) {
+            Helpers::errorResponse('Niekompletna sesja – brak tokenu lub numeru referencyjnego', 'app_error');
+        }
         if (!$session) {
             Helpers::errorResponse('Sesja wygasła lub nie istnieje', 'user_error');
         }

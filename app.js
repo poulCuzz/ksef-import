@@ -1,193 +1,148 @@
 // ============================================================================
-// ZMIENNE GLOBALNE
+// KONFIGURACJA
 // ============================================================================
 
 let sessionId = null;
 let checkInterval = null;
 let attemptCount = 0;
-const maxAttempts = 60; // 60 prób × 3 sekundy = 3 minuty
-const checkIntervalMs = 3000; // 3 sekundy
+const maxAttempts = 200;
+const checkIntervalMs = 5000;
 
 // ============================================================================
 // ELEMENTY DOM
 // ============================================================================
 
-const form = document.getElementById('exportForm');
-const submitBtn = document.getElementById('submitBtn');
-const statusPanel = document.getElementById('statusPanel');
-const spinner = document.getElementById('spinner');
-const checkmark = document.getElementById('checkmark');
-const errorIcon = document.getElementById('errorIcon');
-const statusTitle = document.getElementById('statusTitle');
-const statusMessage = document.getElementById('statusMessage');
-const statusDetails = document.getElementById('statusDetails');
-const progressBar = document.getElementById('progressBar');
-const progressFill = document.getElementById('progressFill');
-const attemptCounter = document.getElementById('attemptCounter');
-const downloadList = document.getElementById('downloadList');
-const warningIcon = document.getElementById('warningIcon');
-const infoIcon = document.getElementById('infoIcon');
-const suggestionsList = document.getElementById('suggestionsList');
-const errorCodeEl = document.getElementById('errorCode');
+const $ = id => document.getElementById(id);
+const form = $('exportForm');
+const submitBtn = $('submitBtn');
+const statusPanel = $('statusPanel');
+const statusTitle = $('statusTitle');
+const statusMessage = $('statusMessage');
+const statusDetails = $('statusDetails');
+const progressFill = $('progressFill');
+const attemptCounter = $('attemptCounter');
+const downloadList = $('downloadList');
+const suggestionsList = $('suggestionsList');
+const errorCodeEl = $('errorCode');
+
+const icons = {
+    spinner: $('spinner'),
+    checkmark: $('checkmark'),
+    error: $('errorIcon'),
+    warning: $('warningIcon'),
+    info: $('infoIcon')
+};
 
 // ============================================================================
-// OBSŁUGA FORMULARZA
+// PRZEŁĄCZNIK METODY UWIERZYTELNIANIA
 // ============================================================================
 
-form.addEventListener('submit', async (e) => {
-    e.preventDefault();
+document.querySelectorAll('.method-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+        e.preventDefault();
+        const method = btn.dataset.method;
+        
+        document.querySelectorAll('.method-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        $('auth_method').value = method;
+        $('token-form')?.classList.toggle('active', method === 'token');
+        $('certificate-form')?.classList.toggle('active', method === 'certificate');
+    });
+});
+
+// ============================================================================
+// UPLOAD PLIKÓW
+// ============================================================================
+
+function setupFileUpload(inputId, boxId, selectedId, nameId, removeId) {
+    const input = $(inputId), box = $(boxId), selected = $(selectedId), name = $(nameId), remove = $(removeId);
+    if (!input || !box) return;
+
+    const showFile = () => {
+        if (input.files?.[0]) {
+            name.textContent = input.files[0].name;
+            box.style.display = 'none';
+            selected.style.display = 'flex';
+        }
+    };
+
+    const clearFile = () => {
+        input.value = '';
+        box.style.display = 'flex';
+        selected.style.display = 'none';
+    };
+
+    input.addEventListener('change', showFile);
+    box.addEventListener('click', () => input.click());
+    remove?.addEventListener('click', e => { e.preventDefault(); clearFile(); });
+
+    ['dragover', 'dragleave', 'drop'].forEach(event => {
+        box.addEventListener(event, e => {
+            e.preventDefault();
+            box.classList.toggle('dragover', event === 'dragover');
+            if (event === 'drop' && e.dataTransfer.files.length) {
+                input.files = e.dataTransfer.files;
+                showFile();
+            }
+        });
+    });
+}
+
+setupFileUpload('cert_file', 'cert_upload_box', 'cert_selected', 'cert_file_name', 'cert_remove');
+setupFileUpload('key_file', 'key_upload_box', 'key_selected', 'key_file_name', 'key_remove');
+
+// ============================================================================
+// WALIDACJA
+// ============================================================================
+
+function validateForm() {
+    const method = $('auth_method').value;
+    const nip = $('nip').value;
+
+    if (!nip || nip.length !== 10) return 'NIP musi składać się z 10 cyfr';
+    if (!$('date_from').value || !$('date_to').value) return 'Daty są wymagane';
     
-    // Reset
-    attemptCount = 0;
-    sessionId = null;
-    if (checkInterval) clearInterval(checkInterval);
-    
-    // UI - start
+    if (method === 'token' && !$('ksef_token').value.trim()) {
+        return 'Token KSeF jest wymagany';
+    }
+    if (method === 'certificate') {
+        if (!$('cert_file').files[0]) return 'Wybierz plik certyfikatu (.crt)';
+        if (!$('key_file').files[0]) return 'Wybierz plik klucza (.key)';
+    }
+    return null;
+}
+
+// ============================================================================
+// UI HELPERS
+// ============================================================================
+
+function hideAllIcons() {
+    Object.values(icons).forEach(icon => icon && (icon.style.display = 'none'));
+}
+
+function showIcon(name) {
+    hideAllIcons();
+    icons[name] && (icons[name].style.display = 'flex');
+}
+
+function setStatus(title, message, details = '') {
+    statusTitle.textContent = title;
+    statusMessage.textContent = message;
+    statusDetails.textContent = details;
+}
+
+function resetUI() {
     submitBtn.disabled = true;
     submitBtn.textContent = 'Przetwarzanie...';
     statusPanel.className = 'status-panel show';
-    spinner.style.display = 'block';
-    checkmark.style.display = 'none';
-    errorIcon.style.display = 'none';
-    progressBar.style.display = 'block';
+    showIcon('spinner');
+    $('progressBar').style.display = 'block';
     progressFill.style.width = '10%';
     downloadList.style.display = 'none';
     downloadList.innerHTML = '';
     suggestionsList.style.display = 'none';
-    suggestionsList.innerHTML = '';
     errorCodeEl.textContent = '';
-    warningIcon.style.display = 'none';
-    infoIcon.style.display = 'none';
-    updateStatus('Łączenie z KSeF...', 'Autoryzacja i inicjacja importu');
-    
-    try {
-        // Krok 1: Start importu
-        const formData = new FormData(form);
-        formData.append('action', 'start_export');
-        
-        const response = await fetch('api.php', {
-            method: 'POST',
-            body: formData
-        });
-        
-        const data = await response.json();
-        
-        if (!data.success) {
-            if (data.errorType) {
-                showError(data);
-                return;
-            }
-            throw new Error(data.error || data.message || 'Nieznany błąd');
-        }
-        
-        sessionId = data.sessionId;
-        progressFill.style.width = '30%';
-        updateStatus('Import rozpoczęty', `Reference: ${data.referenceNumber}`);
-        statusDetails.textContent = `Reference Number: ${data.referenceNumber}`;
-        
-        // Krok 2: Sprawdzaj status co 3 sekundy
-        checkInterval = setInterval(checkExportStatus, checkIntervalMs);
-        checkExportStatus(); // Pierwsze sprawdzenie od razu
-        
-    } catch (error) {
-        // Sprawdź czy to odpowiedź z API z klasyfikacją
-        if (error.errorType) {
-            showError(error);
-        } else {
-            showError(error.message);
-        }
-    }
-});
-
-// ============================================================================
-// SPRAWDZANIE STATUSU EKSPORTU
-// ============================================================================
-
-async function checkExportStatus() {
-    attemptCount++;
-    
-    if (attemptCount > maxAttempts) {
-        clearInterval(checkInterval);
-        showError('Przekroczono limit czasu oczekiwania (3 minuty). Spróbuj ponownie później.');
-        return;
-    }
-    
-    // Update progress
-    const progress = 30 + (attemptCount / maxAttempts) * 60;
-    progressFill.style.width = `${Math.min(progress, 90)}%`;
-    attemptCounter.textContent = `Sprawdzanie statusu... (próba ${attemptCount}/${maxAttempts})`;
-    
-    try {
-        const response = await fetch(`api.php?action=check_status&session=${encodeURIComponent(sessionId)}`);
-        const data = await response.json();
-        
-        if (!data.success) {
-            throw new Error(data.error || 'Błąd sprawdzania statusu');
-        }
-        
-        updateStatus(
-            data.ready ? 'Import gotowy!' : 'Oczekiwanie na import...',
-            data.message
-        );
-        statusDetails.textContent = `Status: ${data.statusCode} - ${data.statusDesc}`;
-        
-        if (data.ready) {
-            clearInterval(checkInterval);
-            showSuccess(data.filesCount);
-        }
-        
-    } catch (error) {
-        // Nie przerywaj przy pojedynczym błędzie - spróbuj ponownie
-        console.error('Check status error:', error);
-        updateStatus('Ponawiam sprawdzanie...', error.message);
-    }
-}
-
-// ============================================================================
-// AKTUALIZACJA STATUSU
-// ============================================================================
-
-function updateStatus(title, message) {
-    statusTitle.textContent = title;
-    statusMessage.textContent = message;
-}
-
-// ============================================================================
-// SUKCES
-// ============================================================================
-
-function showSuccess(filesCount) {
-    statusPanel.className = 'status-panel show success';
-    spinner.style.display = 'none';
-    checkmark.style.display = 'flex';
-    progressFill.style.width = '100%';
-    progressBar.style.display = 'none';
-    attemptCounter.textContent = '';
-    
-    statusTitle.textContent = 'Import zakończony!';
-    statusMessage.textContent = `Znaleziono ${filesCount} plik(ów) do pobrania.`;
-    
-    // Generuj przyciski pobierania
-    downloadList.style.display = 'block';
-    downloadList.innerHTML = '';
-    
-    for (let i = 0; i < filesCount; i++) {
-        const item = document.createElement('div');
-        item.className = 'download-item';
-        item.innerHTML = `
-            <span>📦 Plik ${i + 1} z ${filesCount}</span>
-            <a href="api.php?action=download&session=${encodeURIComponent(sessionId)}&part=${i}" 
-               class="download-btn" 
-               download>
-                Pobierz ZIP
-            </a>
-        `;
-        downloadList.appendChild(item);
-    }
-    
-    // Odblokuj formularz
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'Importuj ponownie';
 }
 
 // ============================================================================
@@ -197,99 +152,163 @@ function showSuccess(filesCount) {
 function showError(data) {
     if (checkInterval) clearInterval(checkInterval);
     
-    // Ukryj wszystkie ikony
-    spinner.style.display = 'none';
-    checkmark.style.display = 'none';
-    errorIcon.style.display = 'none';
-    warningIcon.style.display = 'none';
-    infoIcon.style.display = 'none';
-    progressBar.style.display = 'none';
+    if (typeof data === 'string') {
+        data = { errorType: 'unknown', message: data };
+    }
+
+    const types = {
+        user_error: ['warning', 'warning', 'Błąd danych'],
+        info: ['info', 'info', 'Informacja'],
+        server_error: ['error', 'error', 'Błąd serwera'],
+        app_error: ['error', 'error', 'Błąd aplikacji']
+    };
+
+    const [panelClass, iconName, defaultTitle] = types[data.errorType] || ['error', 'error', 'Wystąpił błąd'];
+    
+    statusPanel.className = `status-panel show ${panelClass}`;
+    showIcon(iconName);
+    $('progressBar').style.display = 'none';
     attemptCounter.textContent = '';
     
-    // Obsługa prostego stringa (stary format)
-    if (typeof data === 'string') {
-        data = {
-            errorType: 'unknown_error',
-            errorCode: 'UNKNOWN',
-            title: 'Wystąpił błąd',
-            message: data,
-            suggestions: ['Spróbuj ponownie']
-        };
-    }
-    
-    // Wybierz styl i ikonę w zależności od typu błędu
-    switch (data.errorType) {
-        case 'user_error':
-            statusPanel.className = 'status-panel show warning';
-            warningIcon.style.display = 'flex';
-            statusTitle.textContent = (data.title || 'Błąd danych');
-            break;
-        case 'info':
-            statusPanel.className = 'status-panel show info';
-            infoIcon.style.display = 'flex';
-            statusTitle.textContent = (data.title || 'Informacja');
-            break;
-        case 'server_error':
-            statusPanel.className = 'status-panel show error';
-            errorIcon.style.display = 'flex';
-            statusTitle.textContent = (data.title || 'Błąd serwera');
-            break;
-        case 'app_error':
-            statusPanel.className = 'status-panel show error';
-            errorIcon.style.display = 'flex';
-            statusTitle.textContent = (data.title || 'Błąd aplikacji');
-            break;
-        default:
-            statusPanel.className = 'status-panel show error';
-            errorIcon.style.display = 'flex';
-            statusTitle.textContent = (data.title || 'Wystąpił błąd');
-    }
-    
-    statusMessage.textContent = data.message || 'Nieznany błąd';
-    statusDetails.textContent = '';
-    
-    // Pokaż sugestie
-    if (data.suggestions && data.suggestions.length > 0) {
-        suggestionsList.style.display = 'block';
+    setStatus(data.title || defaultTitle, data.message || 'Nieznany błąd');
+
+    if (data.suggestions?.length) {
         suggestionsList.innerHTML = '<strong>Co sprawdzić:</strong><ul>' + 
-            data.suggestions.map(s => `<li>${s}</li>`).join('') + 
-            '</ul>';
-    } else {
-        suggestionsList.style.display = 'none';
+            data.suggestions.map(s => `<li>${s}</li>`).join('') + '</ul>';
+        suggestionsList.style.display = 'block';
     }
-    
-    // Pokaż kod błędu
-    if (data.errorCode) {
-        errorCodeEl.textContent = `Kod błędu: ${data.errorCode}`;
-    }
-    
-    // Odblokuj formularz
+
+    if (data.errorCode) errorCodeEl.textContent = `Kod: ${data.errorCode}`;
+
     submitBtn.disabled = false;
     submitBtn.textContent = 'Spróbuj ponownie';
 }
 
 // ============================================================================
-// INICJALIZACJA - USTAWIENIE DOMYŚLNYCH DAT
+// SUKCES
 // ============================================================================
 
-// Ustaw domyślne daty (ostatni miesiąc)
+function showSuccess(filesCount) {
+    statusPanel.className = 'status-panel show success';
+    showIcon('checkmark');
+    $('progressBar').style.display = 'none';
+    attemptCounter.textContent = '';
+    
+    setStatus('Import zakończony!', `Znaleziono ${filesCount} plik(ów) do pobrania.`);
+
+    downloadList.style.display = 'block';
+    downloadList.innerHTML = Array.from({length: filesCount}, (_, i) => `
+        <div class="download-item">
+            <span>📦 Plik ${i + 1}/${filesCount}</span>
+            <a href="api.php?action=download&session=${encodeURIComponent(sessionId)}&part=${i}" 
+               class="download-btn" download>Pobierz ZIP</a>
+        </div>
+    `).join('');
+
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Importuj ponownie';
+}
+
+// ============================================================================
+// SPRAWDZANIE STATUSU
+// ============================================================================
+
+async function checkExportStatus() {
+    attemptCount++;
+    
+    if (attemptCount > maxAttempts) {
+        clearInterval(checkInterval);
+        showError('Przekroczono limit czasu oczekiwania. Spróbuj ponownie później.');
+        return;
+    }
+
+    progressFill.style.width = `${Math.min(30 + (attemptCount / maxAttempts) * 60, 90)}%`;
+    attemptCounter.textContent = `Sprawdzanie... (${attemptCount}/${maxAttempts})`;
+
+    try {
+        const res = await fetch(`api.php?action=check_status&session=${encodeURIComponent(sessionId)}`);
+        const data = await res.json();
+
+        if (!data.success) throw new Error(data.message || 'Błąd sprawdzania statusu');
+
+        setStatus(
+            data.ready ? 'Import gotowy!' : 'Oczekiwanie na import...',
+            data.message,
+            `Status: ${data.statusCode} - ${data.statusDesc}`
+        );
+
+        if (data.ready) {
+            clearInterval(checkInterval);
+            showSuccess(data.filesCount);
+        }
+    } catch (error) {
+        setStatus('Ponawiam sprawdzanie...', error.message);
+    }
+}
+
+// ============================================================================
+// SUBMIT FORMULARZA
+// ============================================================================
+
+form.addEventListener('submit', async e => {
+    e.preventDefault();
+
+    const error = validateForm();
+    if (error) {
+        showError({ errorType: 'user_error', message: error, title: 'Błąd walidacji' });
+        return;
+    }
+
+    attemptCount = 0;
+    sessionId = null;
+    if (checkInterval) clearInterval(checkInterval);
+    
+    resetUI();
+    setStatus('Łączenie z KSeF...', 'Autoryzacja i inicjacja importu');
+
+    try {
+        const formData = new FormData(form);
+        const action = $('auth_method').value === 'certificate' ? 'start_import_certificate' : 'start_import';
+        formData.append('action', action);
+
+        const res = await fetch('api.php', { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (!data.success) {
+            showError({
+                errorType: data.errorType || 'unknown',
+                message: data.message || data.error,
+                title: data.title,
+                suggestions: data.suggestions
+            });
+            return;
+        }
+
+        sessionId = data.sessionId;
+        progressFill.style.width = '30%';
+        setStatus('Import rozpoczęty', `Reference: ${data.referenceNumber}`, `Reference: ${data.referenceNumber}`);
+
+        checkInterval = setInterval(checkExportStatus, checkIntervalMs);
+        checkExportStatus();
+
+    } catch (error) {
+        showError(error.message);
+    }
+});
+
+// ============================================================================
+// INICJALIZACJA
+// ============================================================================
+
+// Domyślne daty (ostatni miesiąc)
 const today = new Date();
 const monthAgo = new Date();
 monthAgo.setMonth(monthAgo.getMonth() - 1);
+$('date_to').value = today.toISOString().split('T')[0];
+$('date_from').value = monthAgo.toISOString().split('T')[0];
 
-document.getElementById('date_to').value = today.toISOString().split('T')[0];
-document.getElementById('date_from').value = monthAgo.toISOString().split('T')[0];
-
-// ============================================================================
-// AUTOMATYCZNE WYKRYWANIE NIP Z TOKENA
-// ============================================================================
-
-// Automatyczne wykrywanie NIP z tokena
-document.getElementById('ksef_token').addEventListener('input', function(e) {
-    const token = e.target.value;
-    const nipMatch = token.match(/nip-(\d{10})/);
-    
-    if (nipMatch) {
-        document.getElementById('nip').value = nipMatch[1];
-    }
+// Auto-wykrywanie NIP z tokena
+$('ksef_token')?.addEventListener('input', e => {
+    const match = e.target.value.match(/nip-(\d{10})/);
+    if (match) $('nip').value = match[1];
 });

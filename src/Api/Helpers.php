@@ -21,12 +21,11 @@ class Helpers
         $logger = new JsonLogger($baseDir . '/logs');
         $client = new KsefClient($logger, $baseUrl);
         
-        $authPublicKey = $baseDir . '/src/Auth/public_key.pem';
-        $exportPublicKey = $baseDir . '/src/Export/public_key_symetric_encription.pem';
-        
-        $authenticator = new KsefAuthenticator($client, $logger, $authPublicKey);
-        $encryptor = new TokenEncryptor($authPublicKey);
-        $exporter = new KsefExporter($baseUrl, $exportPublicKey);
+        // KsefAuthenticator i TokenEncryptor teraz przyjmują baseUrl - klucze pobierają dynamicznie
+        $authenticator = new KsefAuthenticator($client, $logger, $baseUrl);
+        $encryptor = new TokenEncryptor($baseUrl);
+        // KsefExporter teraz przyjmuje tylko baseUrl - klucz pobiera dynamicznie
+        $exporter = new KsefExporter($baseUrl);
         $decryptor = new FileDecryptor();
         
         return new KsefService($authenticator, $encryptor, $exporter, $decryptor, $logger);
@@ -37,7 +36,7 @@ class Helpers
     // ========================================================================
 
     public static function saveSession(string $sessionId, array $data): void {
-        $tempDir = dirname(__DIR__, 3) . '/temp';
+        $tempDir = dirname(__DIR__, 2) . '/temp';
         if (!is_dir($tempDir)) {
             mkdir($tempDir, 0755, true);
         }
@@ -45,15 +44,23 @@ class Helpers
     }
 
     public static function loadSession(string $sessionId): ?array {
-        $file = dirname(__DIR__, 3) . "/temp/session_$sessionId.json";
-        if (!file_exists($file)) {
-            return null;
+        // Stara lokalizacja (token)
+        $file1 = dirname(__DIR__, 2) . "/temp/session_$sessionId.json";
+        if (file_exists($file1)) {
+            return json_decode(file_get_contents($file1), true);
         }
-        return json_decode(file_get_contents($file), true);
+        
+        // Nowa lokalizacja (certyfikat)
+        $file2 = dirname(__DIR__, 2) . "/sessions/$sessionId/session.json";
+        if (file_exists($file2)) {
+            return json_decode(file_get_contents($file2), true);
+        }
+        
+        return null;
     }
 
     public static function cleanOldSessions(): void {
-        $tempDir = dirname(__DIR__, 3) . '/temp';
+        $tempDir = dirname(__DIR__, 2) . '/temp';
         if (!is_dir($tempDir)) return;
         
         foreach (glob("$tempDir/session_*.json") as $file) {

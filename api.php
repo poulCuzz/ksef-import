@@ -10,8 +10,8 @@ ini_set('display_errors', '0');
  * ale z perspektywy aplikacji to "import" (pobieranie faktur).
  * 
  * Dostępne endpointy:
- *   POST ?action=start_export  - Rozpoczyna export z KSeF API (import do aplikacji)
- *   GET  ?action=check_status  - Sprawdza status exportu
+ *   POST ?action=start_import  - Rozpoczyna import (token lub certyfikat)
+ *   GET  ?action=check_status  - Sprawdza status importu
  *   GET  ?action=download      - Pobiera zaszyfrowany plik ZIP
  * 
  */
@@ -21,8 +21,10 @@ require_once __DIR__ . '/vendor/autoload.php';
 use KSeF\Api\Helpers;
 use KSeF\Api\ErrorHandler;
 use KSeF\Api\Actions\StartExportAction;
+use KSeF\Api\Actions\StartImportWithCertificateAction;
 use KSeF\Api\Actions\CheckStatusAction;
 use KSeF\Api\Actions\DownloadAction;
+
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -32,9 +34,16 @@ $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
 try {
     switch ($action) {
-        case 'start_export':
-            (new StartExportAction())->execute();
+        case 'start_import':
+            // Token (stara, stabilna ścieżka)
+            (new KSeF\Api\Actions\StartExportAction())->execute();
             break;
+
+        case 'start_import_certificate':
+            // Certyfikat (XAdES)
+            (new KSeF\Api\Actions\StartImportWithCertificateAction())->execute();
+            break;
+
         
         case 'check_status':
             (new CheckStatusAction())->execute();

@@ -1,5 +1,5 @@
 /* ============================================================================
-   PODSTAWOWE STYLE
+   KSeF 2.0 - SMUKŁY INTERFEJS
    ============================================================================ */
 
 * { 
@@ -12,115 +12,260 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
     background: #ffffff;
     min-height: 100vh;
-    padding: 20px;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .container { 
-    max-width: 600px; 
-    margin: 0 auto; 
+    width: 100%;
+    max-width: 420px; 
 }
 
 .box { 
     background: #fff; 
-    padding: 30px; 
+    padding: 24px; 
     border-radius: 12px; 
     box-shadow: 0 10px 40px rgba(0,0,0,0.2); 
 }
 
 h2 { 
     color: #333; 
-    margin-bottom: 25px; 
-    font-size: 24px; 
+    margin-bottom: 16px; 
+    font-size: 20px; 
     font-weight: 600;
     text-align: center;
 }
 
 /* ============================================================================
-   FORMULARZ
+   PRZEŁĄCZNIK TOKEN/CERTYFIKAT
    ============================================================================ */
 
+.auth-method-switcher {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.method-btn {
+    flex: 1;
+    padding: 10px 12px;
+    border: 2px solid #e0e0e0;
+    background: #fafafa;
+    color: #666;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: auto;
+    margin: 0;
+}
+
+.method-btn:hover {
+    border-color: #667eea;
+    background: #fff;
+}
+
+.method-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-color: #667eea;
+}
+
+/* ============================================================================
+   FORMULARZE
+   ============================================================================ */
+
+.auth-form {
+    display: none;
+}
+
+.auth-form.active {
+    display: block;
+}
+
 .form-group { 
-    margin-bottom: 20px; 
+    margin-bottom: 12px; 
 }
 
 label { 
     display: block; 
-    margin-bottom: 6px; 
+    margin-bottom: 4px; 
     color: #555; 
     font-weight: 500; 
-    font-size: 14px; 
+    font-size: 12px; 
 }
 
-input[type=text], 
+input[type=text],
+input[type=password],
 input[type=date], 
 select { 
     width: 100%; 
-    padding: 12px 14px; 
-    border: 2px solid #e0e0e0; 
-    border-radius: 8px; 
-    font-size: 14px; 
+    padding: 10px 12px; 
+    border: 1px solid #ddd; 
+    border-radius: 6px; 
+    font-size: 13px; 
     background: #fafafa;
-    transition: all 0.3s;
+    transition: all 0.2s;
 }
 
-input[type=text]:focus, 
+input[type=text]:focus,
+input[type=password]:focus,
 input[type=date]:focus, 
 select:focus { 
     outline: none; 
     border-color: #667eea;
     background: #fff;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
 }
 
 .date-row { 
     display: flex; 
-    gap: 15px; 
+    gap: 10px; 
 }
 
 .date-row > div { 
     flex: 1; 
 }
 
+.input-hint {
+    display: block;
+    font-size: 10px;
+    color: #999;
+    margin-top: 3px;
+}
+
 /* ============================================================================
-   PRZYCISKI
+   UPLOAD PLIKÓW - KOMPAKTOWY
    ============================================================================ */
 
-button { 
+.file-upload-wrapper {
+    margin-top: 4px;
+}
+
+.file-input {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+}
+
+.file-upload-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px dashed #ccc;
+    border-radius: 6px;
+    background: #fafafa;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.file-upload-box:hover {
+    border-color: #667eea;
+    background: #f5f5ff;
+}
+
+.file-upload-icon {
+    font-size: 18px;
+}
+
+.file-upload-text {
+    font-size: 12px;
+    color: #666;
+}
+
+.file-upload-hint {
+    display: none;
+}
+
+.file-selected {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #e8f5e9;
+    border: 1px solid #4caf50;
+    border-radius: 6px;
+}
+
+.file-selected-icon {
+    width: 18px;
+    height: 18px;
+    background: #4caf50;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+}
+
+.file-selected-name {
+    flex: 1;
+    font-size: 12px;
+    color: #2e7d32;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-remove-btn {
+    background: none;
+    border: none;
+    color: #d32f2f;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 2px 6px;
+    margin: 0;
+    width: auto;
+}
+
+/* ============================================================================
+   PRZYCISK SUBMIT
+   ============================================================================ */
+
+button[type="submit"],
+#submitBtn { 
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white; 
     border: none; 
-    padding: 14px 28px; 
+    padding: 12px 20px; 
     cursor: pointer; 
-    border-radius: 8px; 
-    font-size: 16px; 
+    border-radius: 6px; 
+    font-size: 14px; 
     font-weight: 600; 
     width: 100%; 
-    margin-top: 10px; 
-    transition: all 0.3s;
+    margin-top: 8px; 
+    transition: all 0.2s;
 }
 
-button:hover:not(:disabled) { 
-    transform: translateY(-2px);
-    box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+button[type="submit"]:hover:not(:disabled),
+#submitBtn:hover:not(:disabled) { 
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
 }
 
 button:disabled {
     opacity: 0.7;
     cursor: not-allowed;
-    transform: none;
 }
 
 /* ============================================================================
-   PANEL STATUSU
+   PANEL STATUSU - KOMPAKTOWY
    ============================================================================ */
 
 .status-panel {
     display: none;
-    margin-top: 25px;
-    padding: 20px;
-    border-radius: 8px;
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
+    margin-top: 16px;
+    padding: 14px;
+    border-radius: 6px;
+    background: #f5f5f5;
+    border: 1px solid #e0e0e0;
 }
 
 .status-panel.show {
@@ -130,30 +275,31 @@ button:disabled {
 .status-header {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 15px;
+    gap: 10px;
+    margin-bottom: 8px;
 }
 
 .status-title {
     font-weight: 600;
     color: #333;
-    font-size: 16px;
+    font-size: 14px;
 }
 
 .status-message {
     color: #666;
-    font-size: 14px;
-    margin-bottom: 10px;
+    font-size: 12px;
+    margin-bottom: 6px;
 }
 
 .status-details {
-    font-size: 12px;
+    font-size: 10px;
     color: #888;
     font-family: monospace;
     background: #fff;
-    padding: 8px 12px;
+    padding: 6px 10px;
     border-radius: 4px;
     border: 1px solid #e0e0e0;
+    word-break: break-all;
 }
 
 /* ============================================================================
@@ -161,9 +307,9 @@ button:disabled {
    ============================================================================ */
 
 .spinner {
-    width: 24px;
-    height: 24px;
-    border: 3px solid #e9ecef;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #e0e0e0;
     border-top-color: #667eea;
     border-radius: 50%;
     animation: spin 1s linear infinite;
@@ -173,178 +319,105 @@ button:disabled {
     to { transform: rotate(360deg); }
 }
 
-.checkmark {
-    width: 24px;
-    height: 24px;
-    background: #28a745;
+.checkmark, .error-icon, .warning-icon, .info-icon {
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 14px;
-}
-
-.error-icon {
-    width: 24px;
-    height: 24px;
-    background: #dc3545;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: bold;
 }
 
-.warning-icon {
-    width: 24px;
-    height: 24px;
-    background: #ffc107;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #856404;
-    font-size: 14px;
-    font-weight: bold;
-}
-
-.info-icon {
-    width: 24px;
-    height: 24px;
-    background: #17a2b8;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 14px;
-    font-weight: bold;
-}
+.checkmark { background: #4caf50; }
+.error-icon { background: #f44336; }
+.warning-icon { background: #ff9800; color: #333; }
+.info-icon { background: #2196f3; }
 
 /* ============================================================================
    PROGRESS BAR
    ============================================================================ */
 
 .progress-bar {
-    height: 6px;
-    background: #e9ecef;
-    border-radius: 3px;
-    margin-top: 15px;
+    height: 4px;
+    background: #e0e0e0;
+    border-radius: 2px;
+    margin-top: 10px;
     overflow: hidden;
 }
 
 .progress-fill {
     height: 100%;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 3px;
     transition: width 0.3s;
-    animation: progress-pulse 2s ease-in-out infinite;
-}
-
-@keyframes progress-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
 }
 
 .attempt-counter {
-    font-size: 12px;
+    font-size: 10px;
     color: #888;
-    margin-top: 10px;
+    margin-top: 6px;
     text-align: center;
 }
 
 /* ============================================================================
-   STANY PANELU STATUSU
+   STANY PANELU
    ============================================================================ */
 
-/* Success state */
 .status-panel.success {
-    background: #d4edda;
-    border-color: #c3e6cb;
+    background: #e8f5e9;
+    border-color: #a5d6a7;
 }
+.status-panel.success .status-title,
+.status-panel.success .status-message { color: #2e7d32; }
 
-.status-panel.success .status-title {
-    color: #155724;
-}
-
-.status-panel.success .status-message {
-    color: #155724;
-}
-
-/* Error state */
 .status-panel.error {
-    background: #f8d7da;
-    border-color: #f5c6cb;
+    background: #ffebee;
+    border-color: #ef9a9a;
 }
+.status-panel.error .status-title,
+.status-panel.error .status-message { color: #c62828; }
 
-.status-panel.error .status-title {
-    color: #721c24;
-}
-
-.status-panel.error .status-message {
-    color: #721c24;
-}
-
-/* Warning state (błąd użytkownika) */
 .status-panel.warning {
-    background: #fff3cd;
-    border-color: #ffc107;
+    background: #fff3e0;
+    border-color: #ffcc80;
 }
+.status-panel.warning .status-title,
+.status-panel.warning .status-message { color: #e65100; }
 
-.status-panel.warning .status-title {
-    color: #856404;
-}
-
-.status-panel.warning .status-message {
-    color: #856404;
-}
-
-/* Info state */
 .status-panel.info {
-    background: #d1ecf1;
-    border-color: #bee5eb;
+    background: #e3f2fd;
+    border-color: #90caf9;
 }
-
-.status-panel.info .status-title {
-    color: #0c5460;
-}
-
-.status-panel.info .status-message {
-    color: #0c5460;
-}
+.status-panel.info .status-title,
+.status-panel.info .status-message { color: #1565c0; }
 
 /* ============================================================================
    SUGESTIE I BŁĘDY
    ============================================================================ */
 
 .suggestions-list {
-    margin-top: 12px;
-    padding: 12px 15px;
-    background: rgba(255,255,255,0.7);
-    border-radius: 6px;
-    font-size: 13px;
+    margin-top: 10px;
+    padding: 10px;
+    background: rgba(255,255,255,0.5);
+    border-radius: 4px;
+    font-size: 11px;
 }
 
 .suggestions-list ul {
-    margin: 0;
-    padding-left: 20px;
+    margin: 5px 0 0 0;
+    padding-left: 18px;
 }
 
 .suggestions-list li {
-    margin-bottom: 5px;
+    margin-bottom: 3px;
     color: #555;
 }
 
-.suggestions-list li:last-child {
-    margin-bottom: 0;
-}
-
 .error-code {
-    margin-top: 10px;
-    font-size: 11px;
+    margin-top: 8px;
+    font-size: 10px;
     color: #888;
     font-family: monospace;
 }
@@ -354,57 +427,52 @@ button:disabled {
    ============================================================================ */
 
 .download-list {
-    margin-top: 15px;
+    margin-top: 12px;
 }
 
 .download-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 15px;
+    padding: 10px 12px;
     background: #fff;
-    border-radius: 6px;
-    margin-bottom: 8px;
-    border: 1px solid #c3e6cb;
+    border-radius: 4px;
+    margin-bottom: 6px;
+    border: 1px solid #a5d6a7;
 }
 
 .download-item span {
-    color: #155724;
+    color: #2e7d32;
     font-weight: 500;
+    font-size: 12px;
 }
 
 .download-btn {
-    background: #28a745;
+    background: #4caf50;
     color: white;
     border: none;
-    padding: 8px 16px;
-    border-radius: 5px;
+    padding: 6px 12px;
+    border-radius: 4px;
     cursor: pointer;
     font-weight: 500;
     text-decoration: none;
-    font-size: 13px;
-    transition: all 0.2s;
+    font-size: 11px;
+    width: auto;
+    margin: 0;
 }
 
 .download-btn:hover {
-    background: #218838;
-    transform: translateY(-1px);
+    background: #43a047;
 }
 
 /* ============================================================================
    RESPONSIVE
    ============================================================================ */
 
-@media (max-width: 600px) {
-    .date-row { 
-        flex-direction: column; 
-    }
-    
-    body {
-        padding: 10px;
-    }
-    
-    .box {
-        padding: 20px;
-    }
+@media (max-width: 480px) {
+    body { padding: 10px; }
+    .box { padding: 16px; }
+    h2 { font-size: 18px; }
+    .date-row { flex-direction: column; gap: 8px; }
+    .auth-method-switcher { flex-direction: column; gap: 6px; }
 }
