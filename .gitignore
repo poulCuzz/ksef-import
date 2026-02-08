@@ -9,7 +9,6 @@
 # Klucze prywatne (certyfikaty publiczne OK)
 *.key
 *.p12
-*.pem
 *.log
 
 # Pliki systemowe
