@@ -88,10 +88,14 @@ https://api-demo.ksef.mf.gov.pl/v2/security/public-key-certificates
 https://api-test.ksef.mf.gov.pl/v2/security/public-key-certificates
 ```
 
-Zapisz certyfikaty:
-- `auth/public_key.pem` - certyfikat do autoryzacji (ten pierwszy i z usage: "KsefTokenEncryption")
-- `export/public_key_symetric_encription.pem` - certyfikat do szyfrowania exportu z KSeF API
-                                                (ten drugi i z usage: "SymmetricKeyEncryption")
+Uzupełnij certyfikaty:
+- src/auth/public_key.pem
+→ certyfikat do szyfrowania AuthenticationToken
+(usage: KsefTokenEncryption)
+
+- src/export/public_key_symmetric_encryption.pem
+→ certyfikat do szyfrowania klucza symetrycznego przy eksporcie faktur
+(usage: SymmetricKeyEncryption)
 
 ### Krok 4: Utwórz wymagane katalogi
 
