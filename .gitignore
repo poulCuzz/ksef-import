@@ -9,6 +9,7 @@
 # Klucze prywatne 
 *.key
 *.p12
+*.pem
 *.log
 
 # Pliki systemowe
