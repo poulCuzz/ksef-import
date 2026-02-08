@@ -8,18 +8,19 @@ use KSeF\Logger\LoggerInterface;
 class KsefAuthenticator implements AuthenticatorInterface {
     private KsefClient $client;
     private LoggerInterface $logger;
-    private string $publicKeyPath;
+    private string $baseUrl;
     private TokenEncryptor $encryptor;
 
     public function __construct(
         KsefClient $client, 
         LoggerInterface $logger,
-        string $publicKeyPath
+        string $baseUrl
     ) {
         $this->client = $client;
         $this->logger = $logger;
-        $this->publicKeyPath = $publicKeyPath;
-        $this->encryptor = new TokenEncryptor($publicKeyPath);
+        $this->baseUrl = $baseUrl;
+        // TokenEncryptor teraz przyjmuje baseUrl - klucz pobiera dynamicznie z API
+        $this->encryptor = new TokenEncryptor($baseUrl);
     }
     
     public function getChallenge(string $nip): array {

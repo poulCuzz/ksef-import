@@ -21,12 +21,11 @@ class Helpers
         $logger = new JsonLogger($baseDir . '/logs');
         $client = new KsefClient($logger, $baseUrl);
         
-        $authPublicKey = $baseDir . '/src/Auth/public_key.pem';
-        $exportPublicKey = $baseDir . '/src/Export/public_key_symetric_encription.pem';
-        
-        $authenticator = new KsefAuthenticator($client, $logger, $authPublicKey);
-        $encryptor = new TokenEncryptor($authPublicKey);
-        $exporter = new KsefExporter($baseUrl, $exportPublicKey);
+        // KsefAuthenticator i TokenEncryptor teraz przyjmują baseUrl - klucze pobierają dynamicznie
+        $authenticator = new KsefAuthenticator($client, $logger, $baseUrl);
+        $encryptor = new TokenEncryptor($baseUrl);
+        // KsefExporter teraz przyjmuje tylko baseUrl - klucz pobiera dynamicznie
+        $exporter = new KsefExporter($baseUrl);
         $decryptor = new FileDecryptor();
         
         return new KsefService($authenticator, $encryptor, $exporter, $decryptor, $logger);

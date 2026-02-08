@@ -45,8 +45,6 @@ class StartImportWithCertificateAction
 
             // 3. Ścieżki
             $baseDir = dirname(__DIR__, 3);
-            $authPublicKey = $baseDir . '/src/Auth/public_key.pem';
-            $exportPublicKey = $baseDir . '/src/Export/public_key_symetric_encription.pem';
 
             // 4. Zapisz uploadowane pliki do temp/
             $this->saveUploadedFiles($baseDir);
@@ -54,11 +52,13 @@ class StartImportWithCertificateAction
             // 5. Pobierz baseUrl
             $baseUrl = $this->getBaseUrl($env);
 
-            // 6. Utwórz zależności (te same co w Helpers::createKsefService)
+            // 6. Utwórz zależności
             $logger = new JsonLogger($baseDir . '/logs');
             $client = new KsefClient($logger, $baseUrl);
-            $authenticator = new KsefAuthenticator($client, $logger, $authPublicKey);
-            $exporter = new KsefExporter($baseUrl, $exportPublicKey);
+            // KsefAuthenticator teraz przyjmuje baseUrl - klucz pobiera dynamicznie
+            $authenticator = new KsefAuthenticator($client, $logger, $baseUrl);
+            // KsefExporter teraz pobiera klucz publiczny dynamicznie z API
+            $exporter = new KsefExporter($baseUrl);
 
             // ============================================================
             // 7. NOWY KOD: Uwierzytelnienie certyfikatem (XAdES)
@@ -88,18 +88,13 @@ class StartImportWithCertificateAction
             // ============================================================
             $dateFromFormatted = $dateFrom . 'T00:00:00.000+00:00';
             $dateToFormatted = $dateTo . 'T23:59:59.999+00:00';
-            try {
-                $exportResult = $exporter->sendExportRequest(
-                    $accessToken,
-                    $subjectType,
-                    $dateFromFormatted,
-                    $dateToFormatted
-                );
-                error_log("exportResult: " . json_encode($exportResult));
-            } catch (\Exception $e) {
-                error_log("EXPORT ERROR: " . $e->getMessage());
-                throw $e;
-            }
+
+            $exportResult = $exporter->sendExportRequest(
+                $accessToken,
+                $subjectType,
+                $dateFromFormatted,
+                $dateToFormatted
+            );
 
             if (!isset($exportResult['referenceNumber'])) {
                 throw new Exception('Brak referenceNumber w odpowiedzi');
@@ -237,7 +232,7 @@ class StartImportWithCertificateAction
             'demo' => 'https://api-demo.ksef.mf.gov.pl/v2',
             'test' => 'https://api-test.ksef.mf.gov.pl/v2',
             'prod', 'production' => 'https://api.ksef.mf.gov.pl/v2',
-            default => 'https://ksef-demo.mf.gov.pl'
+            default => 'https://api-demo.ksef.mf.gov.pl/v2'
         };
     }
 

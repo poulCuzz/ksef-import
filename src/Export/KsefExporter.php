@@ -8,15 +8,16 @@ use KSeF\Export\EncryptionHandler;
 
 class KsefExporter implements ExporterInterface {
     private string $baseUrl;
-    private string $publicKeyPath;
     private EncryptionHandler $encryptionHandler;
 
-    public function __construct(string $baseUrl, string $publicKeyPath) {
+    /**
+     * @param string $baseUrl - np. 'https://api.ksef.mf.gov.pl/v2'
+     */
+    public function __construct(string $baseUrl) {
         $this->baseUrl = $baseUrl;
-        $this->publicKeyPath = $publicKeyPath;
-        $this->encryptionHandler = new EncryptionHandler($publicKeyPath);
+        // Przekaż baseUrl zamiast ścieżki do pliku
+        $this->encryptionHandler = new EncryptionHandler($baseUrl);
     }
-
 
     public function sendExportRequest(string $accessToken, string $subjectType, string $dateFrom, string $dateTo): ?array
     {
@@ -66,7 +67,6 @@ class KsefExporter implements ExporterInterface {
         return json_decode($response, true);
     }
 
-
     public function getExportStatus(string $accessToken, string $referenceNumber): array
     {
         $url = $this->baseUrl . '/invoices/exports/' . urlencode($referenceNumber);
@@ -92,7 +92,6 @@ class KsefExporter implements ExporterInterface {
         }
 
         $data = json_decode($response, true);
-
 
         if ($httpCode !== 200) {
             $msg = $data['exception']['exceptionDescription'] ?? "Błąd HTTP $httpCode";
