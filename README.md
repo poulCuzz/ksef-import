@@ -42,12 +42,10 @@ git clone https://github.com/poulCuzz/ksef-import.git
 cd ksef-import
 composer install
 
-# 3. Pobierz certyfikaty KSeF (instrukcja poniżej)
-
-# 4. Uruchom serwer
+# 3. Uruchom serwer
 php -S localhost:8000
 
-# 5. Otwórz http://localhost:8000
+# 4. Otwórz http://localhost:8000
 ```
 
 ---
@@ -74,37 +72,14 @@ cd ksef-import
 composer install
 ```
 
-### Krok 3: Pobierz certyfikaty KSeF
-
-Pobierz certyfikaty z oficjalnej strony KSeF:
-
-**Środowisko DEMO:**
-```
-https://api-demo.ksef.mf.gov.pl/v2/security/public-key-certificates
-```
-
-**Środowisko TEST:**
-```
-https://api-test.ksef.mf.gov.pl/v2/security/public-key-certificates
-```
-
-Uzupełnij certyfikaty:
-- src/auth/public_key.pem
-→ certyfikat do szyfrowania AuthenticationToken
-(usage: KsefTokenEncryption)
-
-- src/export/public_key_symmetric_encryption.pem
-→ certyfikat do szyfrowania klucza symetrycznego przy eksporcie faktur
-(usage: SymmetricKeyEncryption)
-
-### Krok 4: Utwórz wymagane katalogi
+### Krok 3: Utwórz wymagane katalogi
 
 ```bash
 mkdir -p logs temp
 chmod 777 logs temp
 ```
 
-### Krok 5: Uruchom
+### Krok 4: Uruchom
 
 **Opcja A: Wbudowany serwer PHP (development)**
 ```bash
@@ -215,11 +190,6 @@ ksef-invoices-main/
 
 - To normalne na środowisku TEST - serwer przetwarza żądania w kolejce
 - Aplikacja automatycznie odpytuje co 3 sekundy (max 3 minuty)
-
-### "Błąd pobierania certyfikatu"
-
-- Upewnij się że pliki `.pem` są w katalogach `auth/` i `export/`
-- Sprawdź czy certyfikaty są aktualne
 
 ---
 
