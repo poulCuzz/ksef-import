@@ -198,3 +198,12 @@ ksef-invoices-main/
 **poulCuzz** - [GitHub](https://github.com/poulCuzz)
 
 ---
+
+## Wsparcie projektu ☕️
+
+Jeśli chcesz podziękować autorowi symboliczną kwotą na kawę, możesz użyć BLIKa:  
+
+**nr tel do BLIK:** 603115866  
+
+Dziękuję za wsparcie! 🙏
+
