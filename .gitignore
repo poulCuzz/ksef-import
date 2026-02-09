@@ -3,8 +3,9 @@
 
 # Logi i pliki tymczasowe
 /logs/*.json
-/temp/*.json
 /export/*.json
+/temp
+/sessions
 
 # Klucze prywatne 
 *.key
