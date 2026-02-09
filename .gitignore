@@ -9,7 +9,7 @@
 
 # Klucze prywatne 
 *.key
-*.p12
+*.crt
 *.pem
 *.log
 
@@ -33,7 +33,7 @@ composer.lock
 /logs/*.json
 /logs/*.txt
 /src/Export/last_export_encryption.json
-/temp/session_*.json
-certs/
 
+# Pozostałe
+certs/
 *.txt
