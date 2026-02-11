@@ -24,7 +24,6 @@
 ## Funkcje
 
 - **Prosty interfejs** - import faktur w 3 krokach
-- **Automatyczne odpytywanie** - nie musisz odświeżać strony
 - **Bezpieczna autoryzacja** - szyfrowanie RSA-OAEP + AES-256
 - **Pobieranie ZIP** - faktury pobierane bezpośrednio do przeglądarki
 - **Inteligentne błędy** - jasne komunikaty co poszło nie tak
@@ -72,14 +71,7 @@ cd ksef-import
 composer install
 ```
 
-### Krok 3: Utwórz wymagane katalogi
-
-```bash
-mkdir -p logs temp
-chmod 777 logs temp
-```
-
-### Krok 4: Uruchom
+### Krok 3: Uruchom
 
 **Opcja A: Wbudowany serwer PHP (development)**
 ```bash
