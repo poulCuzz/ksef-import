@@ -57,7 +57,7 @@ php -S localhost:8000
 - PHP 8.0 lub nowszy
 - Rozszerzenia PHP: `curl`, `openssl`, `json`
 - Composer
-- Token KSeF (wygenerowany w panelu Ministerstwa Finansów)
+- Token KSeF (wygenerowany w panelu Ministerstwa Finansów) lub certyfikat (.cert + .key + hasło)
 
 ### Krok 1: Pobierz projekt
 
@@ -106,70 +106,87 @@ Skonfiguruj virtual host wskazujący na katalog projektu.
 ### Struktura projektu
 
 ```
-ksef-invoices-main/
+ksef-import/
+
+│   .gitignore
+│   api.php
+│   app.js
+│   composer.json
+│   composer.lock
+│   do_poprawy.txt
+│   index.html
+│   LICENSE
+│   README.md
+│   styles.css
 │
-├── api.php
-├── index.html
-├── styles.css
-├── app.js
-├── composer.json
-├── LICENSE
-├── README.md
-├── .gitignore
+├───docs
+│   └───images
+│           screenshot-success.png
 │
-├── src/
+├───logs
+│       .gitkeep
+│
+├───src
+│   │   KsefService.php
 │   │
-│   ├── Api/
-│   │   ├── Helpers.php
-│   │   ├── ErrorHandler.php
+│   ├───Api
+│   │   │   ErrorHandler.php
+│   │   │   Helpers.php
 │   │   │
-│   │   └── Actions/
-│   │       ├── StartExportAction.php
-│   │       ├── CheckStatusAction.php
-│   │       └── DownloadAction.php
+│   │   └───Actions
+│   │           CheckStatusAction.php
+│   │           DownloadAction.php
+│   │           StartExportAction.php
+│   │           StartImportWithCertificateAction.php
 │   │
-│   ├── Auth/
-│   │   ├── AuthenticatorInterface.php
-│   │   ├── KsefAuthenticator.php
-│   │   ├── TokenEncryptor.php
-│   │   └── public_key.pem
+│   ├───Auth
+│   │   │   .gitkeep
+│   │   │   AuthenticatorInterface.php
+│   │   │   CertificateAuthenticator.php
+│   │   │   KsefAuthenticator.php
+│   │   │   TokenEncryptor.php
+│   │   │
+│   │   └───keys_cache
+│   │           token_key_demo.pem
 │   │
-│   ├── Export/
-│   │   ├── EncryptionHandler.php
-│   │   ├── ExporterInterface.php
-│   │   ├── FileDecryptor.php
-│   │   ├── KsefExporter.php
-│   │   ├── last_export_encryption.json
-│   │   └── public_key_symetric_encryption.pem
+│   ├───Export
+│   │   │   .gitkeep
+│   │   │   EncryptionHandler.php
+│   │   │   ExporterInterface.php
+│   │   │   FileDecryptor.php
+│   │   │   KsefExporter.php
+│   │   │   last_export_encryption.json
+│   │   │
+│   │   └───keys_cache
+│   │           public_key_demo.pem
+│   │           public_key_prod.pem
 │   │
-│   ├── Http/
-│   │   └── KsefClient.php
+│   ├───Http
+│   │       KsefClient.php
 │   │
-│   ├── Logger/
-│   │   ├── JsonLogger.php
-│   │   └── LoggerInterface.php
-│   │
-│   └── KsefService.php
+│   └───Logger
+│           JsonLogger.php
+│           LoggerInterface.php
 │
-├── docs/
-├── logs/
-├── temp/
-└── vendor/
+└───temp
+        .gitkeep
+        .htaccess
 ```
 
 ### API Endpoints
 
 | Endpoint | Metoda | Opis |
 |----------|--------|------|
-| `api.php?action=start_export` | POST | Rozpoczyna export faktur z KSeF API|
-| `api.php?action=check_status&session=XXX` | GET | Sprawdza status exportu z KSeF API |
-| `api.php?action=download&session=XXX&part=0` | GET | Pobiera plik ZIP |
+| `api.php?action=start_import` | POST | Rozpoczyna import faktur (autoryzacja tokenem) |
+| `api.php?action=start_import_certificate` | POST | Rozpoczyna import faktur (autoryzacja certyfikatem XAdES) |
+| `api.php?action=check_status` | GET | Sprawdza status importu |
+| `api.php?action=download` | GET | Pobiera zaszyfrowany plik ZIP |
 
 ### Parametry importu (z perspektywy KSeF API eksportu)
 
 | Parametr | Opis | Przykład |
 |----------|------|----------|
-| `env` | Środowisko (demo/test) | `demo` |
+| `env` | Środowisko (demo/test/prod) | `demo` |
 | `ksef_token` | Token autoryzacyjny | `20251124-EC-...` |
 | `nip` | NIP firmy (10 cyfr) | `1234567890` |
 | `subject_type` | Typ podmiotu | `Subject1` (sprzedawca) / `Subject2` (nabywca) |
@@ -184,12 +201,7 @@ ksef-invoices-main/
 
 - Sprawdź czy token jest poprawny
 - Sprawdź czy NIP zgadza się z tokenem
-- Sprawdź czy środowisko (DEMO/TEST) pasuje do tokena
-
-### "Import nie jest jeszcze gotowy"
-
-- To normalne na środowisku TEST - serwer przetwarza żądania w kolejce
-- Aplikacja automatycznie odpytuje co 3 sekundy (max 3 minuty)
+- Sprawdź czy środowisko (DEMO/TEST/PROD) pasuje do tokena/ certyfikatu
 
 ---
 
